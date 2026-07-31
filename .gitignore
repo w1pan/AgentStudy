@@ -1,0 +1,16 @@
+# IDE and local tools
+/.claude/
+/.idea/
+/.vscode/
+
+# Root virtual environment
+/.venv/
+
+# Environment secrets at any depth
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
