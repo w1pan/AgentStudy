@@ -1,86 +1,23 @@
-# LangChain Agent 学习项目
+# 轻衡 API
 
-## 项目结构
+FastAPI 后端负责服务端可信的热量计算、PostgreSQL 持久化、真实图片格式验证和按需 DashScope 调用。
 
-```
-agent-learning/
-├── README.md              # 本文件
-├── requirements.txt        # Python 依赖
-├── .env.example           # 环境变量模板
-├── 01_simple_chain.py     # 最简单的 Chain
-├── 02_with_tools.py       # 带工具的 Agent
-├── 03_agent_loop.py       # 手动实现 Agent 循环
-├── 04_with_memory.py      # 带记忆的 Agent
-└── 05_rag_agent.py        # RAG + Agent
-```
+## 配置
 
-## 快速开始
+复制 `.env.example` 为 `.env` 并填写数据库和模型密钥。统一使用 `DATABASE_URL`；旧 `CHECKPOINT_DATABASE_URL` 仅作为临时启动兼容，不再写入示例配置。
 
-### 1. 安装依赖
+## 数据库
 
-```bash
-cd agent-learning
-pip install -r requirements.txt
+启动时依次执行 `db/migrations/*.sql`，并幂等写入 275 个食物模板和 40 个 MET 活动。每个食物模板保存中心热量与误差率；照片识别只提供食物、份量和置信度，热量由服务端计算。整餐通过不确定度平方和及 8% 公共误差聚合，不直接累加所有最坏极值。旧照片记录会使用已保存的结构化组成自动重算一次，无需原图或用户确认。
+
+API 使用服务端固定的 `local-user`，不接受客户端用户 ID、热量汇总或来源正文。
+
+## 运行与测试
+
+```powershell
+uv sync
+uv run python -m app.main
+uv run python -m unittest discover -s tests -v
 ```
 
-### 2. 配置环境变量
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件，填入你的 API 密钥：
-
-```
-ANTHROPIC_API_KEY=your_anthropic_key_here
-OPENAI_API_KEY=your_openai_key_here  # 仅 05_rag_agent.py 需要
-```
-
-### 3. 运行示例
-
-```bash
-python 01_simple_chain.py
-python 02_with_tools.py
-python 03_agent_loop.py
-python 04_with_memory.py
-python 05_rag_agent.py
-```
-
-## 学习顺序
-
-| 阶段 | 文件 | 核心概念 |
-|------|------|---------|
-| Day 1 | 01_simple_chain.py | Prompt + LLM = Chain |
-| Day 2 | 02_with_tools.py | Tool Use / ReAct |
-| Day 3 | 03_agent_loop.py | 完整 Agent 循环原理 |
-| Day 4 | 04_with_memory.py | Memory 管理 |
-| Day 5+ | 05_rag_agent.py | RAG 检索增强 |
-
-## 核心概念
-
-### Chain
-```
-User → Prompt Template → LLM → Output
-```
-
-### Agent 循环
-```
-User Input → LLM → stop_reason?
-                    ├── end_turn → Return Final Answer
-                    └── tool_use → Execute Tool → Feed Result to LLM → Loop
-```
-
-### RAG
-```
-Query → Retriever → Relevant Docs → LLM → Answer
-```
-
-## 环境要求
-
-- Python 3.10+
-- Anthropic API Key（必须）
-- OpenAI API Key（仅 RAG 示例）
-
-## 扩展练习
-
-每个文件末尾都有"扩展练习"建议，尝试完成它们以加深理解。
+服务仅监听 `127.0.0.1:8001`。照片接口接收原始二进制请求体，餐次通过查询参数提交；请求扩展名和 Content-Type 不参与真实格式判定。JPEG、PNG、WebP 以及微信常见的双帧 MPO/JPEG 容器会经过文件头、帧数、总像素和完整解码校验，最终只在内存中重编码为单帧 JPEG。

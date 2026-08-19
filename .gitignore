@@ -6,6 +6,9 @@
 # Root virtual environment
 /.venv/
 
+# Local database runtime and data
+/.runtime/
+
 # Environment secrets at any depth
 **/.env
 **/.env.*
