@@ -16,7 +16,7 @@ class PhotoEstimateTests(unittest.TestCase):
             },
         ]
         low, high, confidence = aggregate_photo_estimate(items)
-        self.assertEqual((low, high), (249, 351))
+        self.assertEqual((low, high), (254, 346))
         self.assertEqual(confidence, "high")
         self.assertLess(high - low, sum(item["kcal_high"] - item["kcal_low"] for item in items))
 
@@ -71,6 +71,16 @@ class PhotoEstimateTests(unittest.TestCase):
         )
         self.assertEqual(result[2:4], (180, 220))
         self.assertEqual(result[4:6], (172, 228))
+
+    def test_hui_mian_template_narrows_density_uncertainty_without_changing_center(self):
+        result = estimate_item(
+            grams=456, confidence="medium", kcal_per_100g=165,
+            food_uncertainty=0.18, portion_uncertainty=0.19,
+            grams_range=(369, 543),
+        )
+        self.assertEqual(result[0], 752)
+        self.assertEqual(result[2:4], (369, 543))
+        self.assertEqual(result[4:6], (555, 949))
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(by_name["白米饭"].kcal_value, 116)
         self.assertEqual(by_name["番茄"].kcal_value, 18)
         self.assertEqual(by_name["牛肉饼"].kcal_value, 250)
+        self.assertEqual(by_name["羊肉烩面"].kcal_value, 165)
+        self.assertEqual(by_name["羊肉烩面"].uncertainty_pct, 0.18)
         self.assertNotEqual(by_name["鸡翅"].kcal_value, by_name["鳕鱼"].kcal_value)
 
     def test_met_catalog_has_expected_coverage(self):

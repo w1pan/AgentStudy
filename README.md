@@ -47,6 +47,18 @@ npm install
 .\start-qingheng.ps1 -LocalOnly
 ```
 
+关闭网页和 API：
+
+```powershell
+.\stop-qingheng.ps1
+```
+
+同时关闭本地 PostgreSQL：
+
+```powershell
+.\stop-qingheng.ps1 -IncludeDatabase
+```
+
 局域网模式没有账户认证，只应在可信的专用网络使用，不要将端口转发到公网。若 Windows 防火墙拦截：先确认这是可信家庭/办公网络并在 Windows 设置中将它标记为“专用网络”，然后以管理员身份运行：
 
 ```powershell

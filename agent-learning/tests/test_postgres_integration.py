@@ -8,7 +8,7 @@ import psycopg
 from psycopg.errors import UniqueViolation
 
 from app.database import (
-    _recalibrate_legacy_photo_meals,
+    _recalibrate_photo_meals,
     close_database,
     connection,
     initialize_database,
@@ -49,24 +49,14 @@ class PostgresIntegrationTests(unittest.TestCase):
                 (self.user_id, date.today()),
             )
 
-    def test_catalogs_seeded_and_legacy_tables_removed(self):
+    def test_catalogs_are_seeded(self):
         foods = self.conn.execute("SELECT COUNT(*) FROM food_templates WHERE active").fetchone()[0]
         mets = self.conn.execute("SELECT COUNT(*) FROM met_activities WHERE active").fetchone()[0]
-        legacy = self.conn.execute(
-            """
-            SELECT COUNT(*)
-            FROM unnest(ARRAY[
-                'checkpoints', 'checkpoint_blobs', 'checkpoint_writes', 'checkpoint_migrations'
-            ]) AS name
-            WHERE to_regclass('public.' || name) IS NOT NULL
-            """
-        ).fetchone()[0]
         rice = self.conn.execute(
             "SELECT kcal_value, uncertainty_pct FROM food_templates WHERE name = '白米饭'"
         ).fetchone()
         self.assertGreaterEqual(foods, 200)
         self.assertGreaterEqual(mets, 40)
-        self.assertEqual(legacy, 0)
         self.assertEqual(rice[0], 116)
         self.assertAlmostEqual(float(rice[1]), 0.10)
 
@@ -148,7 +138,7 @@ class PostgresIntegrationTests(unittest.TestCase):
                         """,
                         (item_id, meal_id),
                     )
-                    _recalibrate_legacy_photo_meals(conn)
+                    _recalibrate_photo_meals(conn)
                     meal = conn.execute(
                         "SELECT kcal_low, kcal_high, estimate_confidence FROM meal_records WHERE id = %s",
                         (meal_id,),

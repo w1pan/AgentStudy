@@ -27,11 +27,25 @@ export const useQinghengStore = defineStore('qingheng', () => {
     busy.value = true
     error.value = ''
     try {
-      profile.value = await api.getProfile()
-      today.value = await api.getToday()
+      try {
+        profile.value = await api.getProfile()
+      } catch (value) {
+        if (value instanceof ApiError && value.status === 404) {
+          profile.value = null
+          today.value = null
+          return
+        }
+        throw value
+      }
+
+      try {
+        today.value = await api.getToday()
+      } catch (value) {
+        today.value = null
+        setError(value)
+      }
     } catch (value) {
-      if (!(value instanceof ApiError) || value.status !== 404) setError(value)
-      profile.value = null
+      setError(value)
       today.value = null
     } finally {
       initialized.value = true

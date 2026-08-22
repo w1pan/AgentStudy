@@ -1,33 +1,44 @@
 import json
 import unittest
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.ai import (
     VisionComponent,
     VisionMeal,
+    analyze_meal_image,
     clear_advice_cache,
     generate_advice,
     photo_items,
+    stream_follow_up,
 )
 from app.models.schemas import FoodTemplateResponse, KcalRange
-
-
-def fake_completion(content: str):
-    return SimpleNamespace(
-        chat=SimpleNamespace(
-            completions=SimpleNamespace(
-                create=lambda **_: SimpleNamespace(
-                    choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
-                )
-            )
-        )
-    )
 
 
 class AiTrustTests(unittest.TestCase):
     def setUp(self):
         clear_advice_cache()
+
+    def test_vision_request_disables_thinking_and_bounds_json_output(self):
+        captured = {}
+        payload = {
+            "meal_name": "烩面",
+            "components": [{
+                "name": "烩面", "category": "mixed_dish", "grams_estimate": 600,
+                "confidence": "medium", "portion_basis": "mixed",
+            }],
+        }
+
+        def invoke(**kwargs):
+            captured.update(kwargs)
+            return json.dumps(payload, ensure_ascii=False)
+
+        with patch("app.ai.invoke_chat", side_effect=invoke):
+            result = analyze_meal_image(b"normalized-image")
+
+        self.assertEqual(result.meal_name, "烩面")
+        self.assertEqual(captured["extra_body"], {"enable_thinking": False})
+        self.assertEqual(captured["response_format"], {"type": "json_object"})
+        self.assertEqual(captured["max_completion_tokens"], 1200)
 
     def test_photo_template_uses_server_calories_and_ai_fallback_is_marked(self):
         vision = VisionMeal(
@@ -118,9 +129,38 @@ class AiTrustTests(unittest.TestCase):
             ]
         }
         facts = {"date": "2026-08-17", "data_version": 1, "verified_ranges_kcal": {}}
-        with patch("app.ai._client", return_value=fake_completion(json.dumps(payload, ensure_ascii=False))):
+        with patch("app.ai.invoke_chat", return_value=json.dumps(payload, ensure_ascii=False)):
             with self.assertRaisesRegex(ValueError, "服务端事实之外"):
                 generate_advice(facts)
+
+    def test_follow_up_allows_fact_numbers_split_across_stream_chunks(self):
+        chunks = ["摄入 5", "00 kcal"]
+        facts = {"date": "2026-08-19", "data_version": 1, "intake": 500}
+
+        with patch("app.ai.stream_chat", return_value=iter(chunks)):
+            result = "".join(stream_follow_up(
+                facts=facts,
+                card_type="status",
+                message="今天怎么样？",
+                history=[],
+            ))
+
+        self.assertEqual(result, "摄入 500 kcal")
+
+    def test_follow_up_rejects_numbers_not_present_in_server_facts(self):
+        chunks = ["建议摄入 ", "999", " kcal"]
+        facts = {"date": "2026-08-19", "data_version": 1, "intake": 500}
+
+        with patch("app.ai.stream_chat", return_value=iter(chunks)):
+            response = stream_follow_up(
+                facts=facts,
+                card_type="status",
+                message="今天怎么样？",
+                history=[],
+            )
+            self.assertEqual(next(response), "建议摄入 ")
+            with self.assertRaisesRegex(ValueError, "服务端事实之外"):
+                next(response)
 
     def test_advice_cache_reuses_same_version_and_invalidates_on_change(self):
         payload = {
@@ -132,20 +172,13 @@ class AiTrustTests(unittest.TestCase):
         }
         calls = 0
 
-        def create(**_):
+        def invoke(**_):
             nonlocal calls
             calls += 1
-            return SimpleNamespace(
-                choices=[SimpleNamespace(
-                    message=SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
-                )]
-            )
+            return json.dumps(payload, ensure_ascii=False)
 
-        fake_client = SimpleNamespace(
-            chat=SimpleNamespace(completions=SimpleNamespace(create=create))
-        )
         facts = {"date": "2026-08-18", "data_version": 501, "verified_ranges_kcal": {}}
-        with patch("app.ai._client", return_value=fake_client):
+        with patch("app.ai.invoke_chat", side_effect=invoke):
             first = generate_advice(facts)
             second = generate_advice(facts)
             changed = generate_advice({**facts, "data_version": 502})

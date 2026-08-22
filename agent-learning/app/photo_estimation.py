@@ -7,6 +7,7 @@ from typing import Any
 
 
 PORTION_UNCERTAINTY = {"high": 0.15, "medium": 0.25, "low": 0.40}
+MEAL_LEVEL_UNCERTAINTY = 0.04
 CONFIDENCE_RANK = {"high": 0, "medium": 1, "low": 2}
 STRATEGY_UNCERTAINTY = {
     "count": {"high": 0.08, "medium": 0.12, "low": 0.20},
@@ -280,7 +281,7 @@ def aggregate_photo_estimate(items: list[dict[str, Any]]) -> tuple[int, int, str
         item.get("uncertainty_kcal", (item["kcal_high"] - item["kcal_low"]) / 2) ** 2
         for item in items
     ))
-    meal_level_uncertainty = kcal_estimate * 0.08
+    meal_level_uncertainty = kcal_estimate * MEAL_LEVEL_UNCERTAINTY
     total_uncertainty = round(math.sqrt(
         independent_uncertainty ** 2 + meal_level_uncertainty ** 2
     ))

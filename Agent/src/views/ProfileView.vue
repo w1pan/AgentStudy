@@ -4,7 +4,7 @@ import { computed, reactive, watch } from 'vue'
 import { api, type DeficitPreset, type ProfilePayload } from '@/api/qingheng'
 import { useQinghengStore } from '@/stores/qingheng'
 
-const props = withDefaults(defineProps<{ onboarding?: boolean }>(), { onboarding: false })
+withDefaults(defineProps<{ onboarding?: boolean }>(), { onboarding: false })
 const emit = defineEmits<{ saved: [] }>()
 const store = useQinghengStore()
 

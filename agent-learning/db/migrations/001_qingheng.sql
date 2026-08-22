@@ -1,8 +1,3 @@
-DROP TABLE IF EXISTS checkpoint_writes;
-DROP TABLE IF EXISTS checkpoint_blobs;
-DROP TABLE IF EXISTS checkpoints;
-DROP TABLE IF EXISTS checkpoint_migrations;
-
 CREATE TABLE IF NOT EXISTS profiles (
     user_id TEXT PRIMARY KEY,
     age SMALLINT NOT NULL CHECK (age BETWEEN 18 AND 64),

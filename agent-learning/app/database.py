@@ -20,6 +20,7 @@ from app.photo_estimation import (
     confidence_from_legacy_range,
     density_confidence,
     estimate_item,
+    worst_confidence,
 )
 
 
@@ -55,7 +56,7 @@ def initialize_database() -> None:
     with _pool.connection() as conn:
         _run_migrations(conn)
         _seed_catalogs(conn)
-        _recalibrate_legacy_photo_meals(conn)
+        _recalibrate_photo_meals(conn)
 
 
 def close_database() -> None:
@@ -163,7 +164,7 @@ def _seed_catalogs(conn: Connection) -> None:
         )
 
 
-def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
+def _recalibrate_photo_meals(conn: Connection) -> None:
     rows = conn.execute(
         """
         SELECT
@@ -198,7 +199,6 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
             LIMIT 1
         ) AS template ON TRUE
         WHERE meal.entry_method = 'photo'
-          AND item.portion_basis IS NULL
         ORDER BY item.meal_id, item.name
         """
     ).fetchall()
@@ -210,7 +210,24 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
     changed_meals: set[object] = set()
     affected_days: set[tuple[str, object]] = set()
     for row in rows:
-        confidence = row["estimate_confidence"] or confidence_from_legacy_range(
+        legacy_portion = row["portion_basis"] is None
+        needs_recalibration = legacy_portion or (
+            row["template_id"] is None and row["matched_template_id"] is not None
+        )
+        if not needs_recalibration:
+            estimate = round((row["kcal_low"] + row["kcal_high"]) / 2)
+            uncertainty = (row["kcal_high"] - row["kcal_low"]) / 2
+            meals.setdefault(row["meal_id"], []).append({
+                "kcal_low": row["kcal_low"],
+                "kcal_high": row["kcal_high"],
+                "kcal_estimate": estimate,
+                "uncertainty_kcal": uncertainty,
+                "estimate_confidence": row["estimate_confidence"] or "low",
+            })
+            meal_rows[row["meal_id"]] = row
+            continue
+
+        portion_confidence = row["portion_confidence"] or row["estimate_confidence"] or confidence_from_legacy_range(
             row["grams_low"], row["grams_high"]
         )
         if row["grams_low"] is not None and row["grams_high"] is not None:
@@ -232,14 +249,38 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
             source_name = "历史视觉识别 + 轻衡分类估值"
             source_version = row["source_version"]
 
+        if legacy_portion:
+            portion_uncertainty = None
+            grams_range = None
+            portion_basis = "visual"
+            portion_detail = "历史照片按画面体积与同类常见份量重新校准"
+        else:
+            portion_basis = row["portion_basis"]
+            portion_detail = row["portion_detail"]
+            if row["grams_low"] is not None and row["grams_high"] is not None:
+                grams_low_value = int(row["grams_low"])
+                grams_high_value = int(row["grams_high"])
+                denominator = grams_low_value + grams_high_value
+                portion_uncertainty = (
+                    (grams_high_value - grams_low_value) / denominator
+                    if denominator > 0 else None
+                )
+                grams_range = (grams_low_value, grams_high_value)
+            else:
+                portion_uncertainty = None
+                grams_range = None
+
         estimate, uncertainty, grams_low, grams_high, kcal_low, kcal_high = estimate_item(
             grams=grams,
-            confidence=confidence,
+            confidence=portion_confidence,
             kcal_per_100g=density,
             food_uncertainty=food_uncertainty,
+            portion_uncertainty=portion_uncertainty,
+            grams_range=grams_range,
         )
         estimate_source = "template" if row["matched_template_id"] is not None else "ai"
         kcal_density_confidence = density_confidence(food_uncertainty)
+        estimate_confidence = worst_confidence(portion_confidence, kcal_density_confidence)
         item_changed = any((
             row["template_id"] != row["matched_template_id"],
             row["category"] != category,
@@ -249,11 +290,11 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
             row["kcal_low"] != kcal_low,
             row["kcal_high"] != kcal_high,
             row["estimate_source"] != estimate_source,
-            row["estimate_confidence"] != confidence,
+            row["estimate_confidence"] != estimate_confidence,
             row["source_name"] != source_name,
             row["source_version"] != source_version,
-            row.get("portion_basis") != "visual",
-            row.get("portion_confidence") != confidence,
+            row.get("portion_basis") != portion_basis,
+            row.get("portion_confidence") != portion_confidence,
             row.get("density_confidence") != kcal_density_confidence,
         ))
         if item_changed:
@@ -269,7 +310,7 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
                     kcal_high = %s,
                     estimate_source = %s,
                     estimate_confidence = %s,
-                    portion_basis = 'visual',
+                    portion_basis = %s,
                     portion_detail = %s,
                     portion_confidence = %s,
                     density_confidence = %s,
@@ -279,9 +320,9 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
                 """,
                 (
                     row["matched_template_id"], category, grams, grams_low, grams_high,
-                    kcal_low, kcal_high, estimate_source, confidence,
-                    "历史照片按画面体积与同类常见份量重新校准",
-                    confidence, kcal_density_confidence, source_name, source_version,
+                    kcal_low, kcal_high, estimate_source, estimate_confidence,
+                    portion_basis, portion_detail,
+                    portion_confidence, kcal_density_confidence, source_name, source_version,
                     row["id"],
                 ),
             )
@@ -291,7 +332,7 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
             "kcal_high": kcal_high,
             "kcal_estimate": estimate,
             "uncertainty_kcal": uncertainty,
-            "estimate_confidence": confidence,
+            "estimate_confidence": estimate_confidence,
         })
         meal_rows[row["meal_id"]] = row
 
@@ -347,4 +388,4 @@ def _recalibrate_legacy_photo_meals(conn: Connection) -> None:
             (intake["low"], intake["high"], intake["high"], intake["low"], user_id, record_date),
         )
     if changed_meals:
-        logger.info("已校准 %s 条照片餐食记录", len(changed_meals))
+        logger.info("已校准或补全模板 %s 条照片餐食记录", len(changed_meals))

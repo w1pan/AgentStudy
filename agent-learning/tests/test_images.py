@@ -5,7 +5,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from PIL import Image
 
-from app.images import read_and_normalize_image
+from app.images import MAX_MODEL_EDGE, read_and_normalize_image
 
 
 class FakeRequest:
@@ -60,6 +60,13 @@ class ImageValidationTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(HTTPException) as context:
                 await read_and_normalize_image(FakeRequest(image_bytes(size=(20, 20))))
         self.assertIn("像素", str(context.exception.detail))
+
+    async def test_large_image_is_downscaled_for_model_latency(self):
+        normalized = await read_and_normalize_image(
+            FakeRequest(image_bytes(size=(1482, 1956)))
+        )
+        with Image.open(BytesIO(normalized)) as image:
+            self.assertEqual(max(image.size), MAX_MODEL_EDGE)
 
     async def test_declared_oversize_is_rejected(self):
         request = FakeRequest(b"x")
