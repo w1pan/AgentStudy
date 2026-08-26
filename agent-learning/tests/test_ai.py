@@ -12,11 +12,16 @@ from app.ai import (
     stream_follow_up,
 )
 from app.models.schemas import FoodTemplateResponse, KcalRange
+from app.nutrition_search import WebDensityEstimate
 
 
 class AiTrustTests(unittest.TestCase):
     def setUp(self):
         clear_advice_cache()
+        self.web_search_patcher = patch("app.ai.resolve_nutrition_evidence")
+        self.web_search_mock = self.web_search_patcher.start()
+        self.web_search_mock.return_value = {}
+        self.addCleanup(self.web_search_patcher.stop)
 
     def test_vision_request_disables_thinking_and_bounds_json_output(self):
         captured = {}
@@ -119,6 +124,36 @@ class AiTrustTests(unittest.TestCase):
         self.assertEqual(item["portion_confidence"], "medium")
         self.assertEqual(item["density_confidence"], "medium")
         self.assertIn("12 个 × 22 克/个", item["portion_detail"])
+
+    def test_low_density_confidence_uses_validated_web_search_estimate(self):
+        vision = VisionMeal(
+            meal_name="午餐",
+            components=[VisionComponent(
+                name="咖喱鸡预制菜", category="mixed_dish", grams_estimate=200,
+                confidence="medium", portion_basis="mixed",
+            )],
+        )
+        self.web_search_mock.return_value = {
+            "咖喱鸡预制菜": WebDensityEstimate(
+                kcal_per_100g=180,
+                uncertainty_pct=0.18,
+                sample_count=3,
+                source_name="DashScope 联网检索同类预制菜",
+                source_version="qwen-test/web-2026-08-22/n=3",
+            ),
+        }
+        with (
+            patch("app.ai.analyze_meal_image", return_value=vision),
+            patch("app.ai.matching_food_templates", return_value=[]),
+        ):
+            item = photo_items(b"normalized-image")[0]
+
+        self.assertEqual(item["kcal_estimate"], 360)
+        self.assertEqual((item["kcal_low"], item["kcal_high"]), (249, 471))
+        self.assertEqual(item["density_confidence"], "medium")
+        self.assertEqual(item["estimate_confidence"], "medium")
+        self.assertEqual(item["source_name"], "DashScope 联网检索同类预制菜")
+        self.web_search_mock.assert_called_once()
 
     def test_advice_rejects_numbers_not_present_in_server_facts(self):
         payload = {

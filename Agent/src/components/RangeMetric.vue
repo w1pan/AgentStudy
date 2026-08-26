@@ -15,30 +15,119 @@ defineProps<{
       <span>{{ label }}</span>
       <small v-if="hint">{{ hint }}</small>
     </div>
-    <strong>{{ value.low === value.high ? value.low : `${value.low}–${value.high}` }} <em>kcal</em></strong>
-    <div class="metric__track"><span /></div>
+    <div class="metric__value">
+      <strong>{{ value.low === value.high ? value.low : `${value.low}–${value.high}` }}</strong
+      ><em>kcal</em>
+    </div>
+    <div class="metric__foot"><span>可信区间</span><i /></div>
   </article>
 </template>
 
 <style scoped>
 .metric {
+  position: relative;
   min-width: 0;
-  padding: 20px;
+  overflow: hidden;
+  padding: 19px 20px 17px;
   border: 1px solid var(--qh-border);
-  border-radius: 18px;
+  border-radius: 20px 7px 20px 7px;
   background: var(--qh-card);
   box-shadow: var(--qh-shadow-soft);
 }
-.metric__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--qh-muted); font-size: 13px; }
-.metric__head span { color: var(--qh-text); font-size: 15px; font-weight: 700; }
-.metric strong { display: block; margin-top: 12px; color: var(--qh-green-dark); font-size: clamp(23px, 2.1vw, 31px); letter-spacing: -.04em; }
-.metric em { font-size: 12px; font-style: normal; font-weight: 600; letter-spacing: 0; }
-.metric__track { height: 8px; margin-top: 18px; overflow: hidden; border-radius: 999px; background: var(--qh-sage-soft); }
-.metric__track span { display: block; width: 48%; height: 100%; margin-left: 27%; border-radius: inherit; background: var(--qh-green); }
-.metric--orange strong { color: var(--qh-orange-dark); }
-.metric--orange .metric__track { background: var(--qh-orange-soft); }
-.metric--orange .metric__track span { background: var(--qh-orange); }
-.metric--neutral strong { color: var(--qh-text); }
-.metric--neutral .metric__track { background: #ebe8df; }
-.metric--neutral .metric__track span { background: #8d8a80; }
+.metric::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 56px;
+  height: 3px;
+  background: var(--qh-green);
+  content: '';
+}
+.metric__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--qh-muted);
+  font-size: 13px;
+}
+.metric__head span {
+  color: var(--qh-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+.metric__head small {
+  overflow: hidden;
+  font-family: var(--qh-data);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metric__value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+}
+.metric strong {
+  color: var(--qh-green-dark);
+  font-family: var(--qh-data);
+  font-size: clamp(23px, 2.1vw, 31px);
+  letter-spacing: -0.055em;
+}
+.metric em {
+  color: var(--qh-muted);
+  font-family: var(--qh-data);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.metric__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 17px;
+  color: var(--qh-muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.metric__foot i {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  background: var(--qh-border-strong);
+}
+.metric__foot i::before,
+.metric__foot i::after {
+  position: absolute;
+  top: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--qh-green);
+  content: '';
+}
+.metric__foot i::before {
+  left: 22%;
+}
+.metric__foot i::after {
+  right: 12%;
+}
+.metric--orange strong {
+  color: var(--qh-orange-dark);
+}
+.metric--orange::after,
+.metric--orange .metric__foot i::before,
+.metric--orange .metric__foot i::after {
+  background: var(--qh-orange);
+}
+.metric--neutral strong {
+  color: var(--qh-text);
+}
+.metric--neutral::after,
+.metric--neutral .metric__foot i::before,
+.metric--neutral .metric__foot i::after {
+  background: #819087;
+}
 </style>

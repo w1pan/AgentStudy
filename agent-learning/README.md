@@ -20,4 +20,4 @@ uv run python -m app.main
 uv run python -m unittest discover -s tests -v
 ```
 
-服务仅监听 `127.0.0.1:8001`。大模型调用统一通过 LangChain 模型接口访问 DashScope；营养估算、误差合成和数据库事务仍由确定性业务代码执行，不使用自主 Agent。照片接口接收原始二进制请求体，餐次通过查询参数提交；请求扩展名和 Content-Type 不参与真实格式判定。JPEG、PNG、WebP 以及微信常见的双帧 MPO/JPEG 容器会经过文件头、帧数、总像素和完整解码校验，最终只在内存中重编码为单帧 JPEG。
+服务仅监听 `127.0.0.1:8001`。大模型调用统一通过 LangChain 模型接口访问 DashScope；营养估算、误差合成和数据库事务仍由确定性业务代码执行。照片识别产生低置信度热量密度时，系统使用受限的 LangChain `create_agent` ReAct：Agent 必须先调用只读工具检查当前证据，随后才可决定是否批量联网检索同类预制菜；每个工具最多调用一次，Agent 不能计算最终热量或写数据库。服务端完成 kJ/kcal 换算、中位数、异常值与离散度计算，只有至少两个来源、密度误差不超过24%且确实优于原证据时才会采用；Agent 或工具失败时回退原有确定性检索与分类兜底。设置 `NUTRITION_REACT_ENABLED=false` 可退回原有直接检索，`NUTRITION_WEB_SEARCH_ENABLED=false` 可完全关闭联网，`NUTRITION_SEARCH_STRATEGY=turbo|max` 可调整检索速度与质量。照片接口接收原始二进制请求体，餐次通过查询参数提交；请求扩展名和 Content-Type 不参与真实格式判定。JPEG、PNG、WebP 以及微信常见的双帧 MPO/JPEG 容器会经过文件头、帧数、总像素和完整解码校验，最终只在内存中重编码为单帧 JPEG。

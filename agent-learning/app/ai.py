@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.common.logger import logger
 from app.llm import invoke_chat, stream_chat
 from app.models.schemas import AdviceResponse
+from app.nutrition_agent import NutritionEvidenceTarget, resolve_nutrition_evidence
 from app.photo_estimation import (
     CATEGORY_FALLBACK,
     density_confidence,
@@ -230,11 +231,52 @@ def photo_items(image_bytes: bytes) -> list[dict[str, Any]]:
     vision = analyze_meal_image(image_bytes)
     model = os.getenv("VISION_MODEL", os.getenv("CHAT_MODEL", "qwen3.5-plus"))
     templates = matching_food_templates()
-    items: list[dict[str, Any]] = []
+    prepared: list[dict[str, Any]] = []
     for component in _merge_components(vision.components):
         template = _best_template(component.name, templates)
         resolved_name = template.name if template is not None else component.name
         resolved_category = template.category if template is not None else component.category
+        if template is not None:
+            density = template.kcal_estimate
+            food_uncertainty = template.uncertainty_pct
+        else:
+            density, food_uncertainty = CATEGORY_FALLBACK[component.category]
+        prepared.append({
+            "component": component,
+            "template": template,
+            "resolved_name": resolved_name,
+            "resolved_category": resolved_category,
+            "density": density,
+            "food_uncertainty": food_uncertainty,
+        })
+
+    # High/medium density evidence is already good enough. Starting ReAct only
+    # for low-confidence items contains latency, cost and tool-call variance.
+    low_confidence_targets = [
+        NutritionEvidenceTarget(
+            food_name=item["resolved_name"],
+            category=item["resolved_category"],
+            kcal_per_100g=item["density"],
+            uncertainty_pct=item["food_uncertainty"],
+            source_name=(
+                item["template"].source_name
+                if item["template"] is not None
+                else "轻衡分类兜底"
+            ),
+        )
+        for item in prepared
+        if density_confidence(item["food_uncertainty"]) == "low"
+    ]
+    if low_confidence_targets:
+        web_densities = resolve_nutrition_evidence(low_confidence_targets[:6])
+    else:
+        web_densities = {}
+    items: list[dict[str, Any]] = []
+    for prepared_item in prepared:
+        component = prepared_item["component"]
+        template = prepared_item["template"]
+        resolved_name = prepared_item["resolved_name"]
+        resolved_category = prepared_item["resolved_category"]
         portion = estimate_portion(
             name=resolved_name,
             category=resolved_category,
@@ -248,69 +290,56 @@ def photo_items(image_bytes: bytes) -> list[dict[str, Any]]:
             package_grams=component.package_grams,
             occlusion=component.occlusion,
         )
-        if template is not None:
-            kcal_density_confidence = density_confidence(template.uncertainty_pct)
-            estimate, uncertainty, grams_low, grams_high, kcal_low, kcal_high = estimate_item(
-                grams=portion.grams,
-                confidence=component.confidence,
-                kcal_per_100g=template.kcal_estimate,
-                food_uncertainty=template.uncertainty_pct,
-                portion_uncertainty=portion.uncertainty,
-                grams_range=(portion.grams_low, portion.grams_high),
-            )
-            items.append({
-                "template_id": template.id,
-                "name": template.name,
-                "category": template.category,
-                "quantity": portion.grams,
-                "unit": "克",
-                "grams_low": grams_low,
-                "grams_high": grams_high,
-                "kcal_low": kcal_low,
-                "kcal_high": kcal_high,
-                "kcal_estimate": estimate,
-                "uncertainty_kcal": uncertainty,
-                "estimate_source": "template",
-                "estimate_confidence": worst_confidence(portion.confidence, kcal_density_confidence),
-                "portion_basis": portion.basis,
-                "portion_detail": portion.detail,
-                "portion_confidence": portion.confidence,
-                "density_confidence": kcal_density_confidence,
-                "source_name": template.source_name,
-                "source_version": template.source_version,
-            })
+        density = prepared_item["density"]
+        food_uncertainty = prepared_item["food_uncertainty"]
+        # A web value reaches this point only after the search validator and
+        # the Agent-side improvement gate have both accepted it.
+        web_density = web_densities.get(_normalize_food_name(resolved_name))
+        if web_density is not None:
+            density = web_density.kcal_per_100g
+            food_uncertainty = web_density.uncertainty_pct
+            estimate_source = "ai"
+            source_name = web_density.source_name
+            source_version = web_density.source_version
+        elif template is not None:
+            estimate_source = "template"
+            source_name = template.source_name
+            source_version = template.source_version
         else:
-            density, food_uncertainty = CATEGORY_FALLBACK[component.category]
-            kcal_density_confidence = density_confidence(food_uncertainty)
-            estimate, uncertainty, grams_low, grams_high, kcal_low, kcal_high = estimate_item(
-                grams=portion.grams,
-                confidence=component.confidence,
-                kcal_per_100g=density,
-                food_uncertainty=food_uncertainty,
-                portion_uncertainty=portion.uncertainty,
-                grams_range=(portion.grams_low, portion.grams_high),
-            )
-            items.append({
-                "template_id": None,
-                "name": component.name,
-                "category": component.category,
-                "quantity": portion.grams,
-                "unit": "克",
-                "grams_low": grams_low,
-                "grams_high": grams_high,
-                "kcal_low": kcal_low,
-                "kcal_high": kcal_high,
-                "kcal_estimate": estimate,
-                "uncertainty_kcal": uncertainty,
-                "estimate_source": "ai",
-                "estimate_confidence": worst_confidence(portion.confidence, kcal_density_confidence),
-                "portion_basis": portion.basis,
-                "portion_detail": portion.detail,
-                "portion_confidence": portion.confidence,
-                "density_confidence": kcal_density_confidence,
-                "source_name": "DashScope 食物识别 + 轻衡分类估值",
-                "source_version": model,
-            })
+            estimate_source = "ai"
+            source_name = "DashScope 食物识别 + 轻衡分类估值"
+            source_version = model
+
+        kcal_density_confidence = density_confidence(food_uncertainty)
+        estimate, uncertainty, grams_low, grams_high, kcal_low, kcal_high = estimate_item(
+            grams=portion.grams,
+            confidence=component.confidence,
+            kcal_per_100g=density,
+            food_uncertainty=food_uncertainty,
+            portion_uncertainty=portion.uncertainty,
+            grams_range=(portion.grams_low, portion.grams_high),
+        )
+        items.append({
+            "template_id": template.id if template is not None else None,
+            "name": resolved_name,
+            "category": resolved_category,
+            "quantity": portion.grams,
+            "unit": "克",
+            "grams_low": grams_low,
+            "grams_high": grams_high,
+            "kcal_low": kcal_low,
+            "kcal_high": kcal_high,
+            "kcal_estimate": estimate,
+            "uncertainty_kcal": uncertainty,
+            "estimate_source": estimate_source,
+            "estimate_confidence": worst_confidence(portion.confidence, kcal_density_confidence),
+            "portion_basis": portion.basis,
+            "portion_detail": portion.detail,
+            "portion_confidence": portion.confidence,
+            "density_confidence": kcal_density_confidence,
+            "source_name": source_name,
+            "source_version": source_version,
+        })
     return items
 
 

@@ -45,6 +45,8 @@ async def read_and_normalize_image(request: Request) -> bytes:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(body)) as probe:
+                # Extension and Content-Type are attacker-controlled; Pillow's
+                # decoded format must also agree with the real file signature.
                 image_format = (probe.format or "").upper()
                 if image_format not in SUPPORTED_FORMATS:
                     detected = image_format or "未知格式"

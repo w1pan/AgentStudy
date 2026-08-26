@@ -1,34 +1,112 @@
 :root {
-  --qh-bg: #f7f4ec;
-  --qh-card: #fffef9;
-  --qh-ivory-strong: #f4efe3;
-  --qh-text: #23281f;
-  --qh-muted: #73786e;
-  --qh-border: #e6e0d3;
-  --qh-border-strong: #cbc5b7;
-  --qh-green: #4d823f;
-  --qh-green-dark: #35652f;
-  --qh-sage-soft: #e9f0e3;
-  --qh-orange: #ef8a2e;
-  --qh-orange-dark: #c96816;
-  --qh-orange-soft: #fff0df;
-  --qh-shadow-soft: 0 7px 22px rgb(42 54 37 / 5%);
-  --qh-shadow: 0 18px 52px rgb(42 54 37 / 10%);
+  --qh-bg: #eef3ef;
+  --qh-card: #fbfdf9;
+  --qh-ivory-strong: #e7ede8;
+  --qh-text: #17251d;
+  --qh-muted: #66756c;
+  --qh-border: #d6dfd8;
+  --qh-border-strong: #b7c5bb;
+  --qh-green: #2d6a4f;
+  --qh-green-dark: #184c37;
+  --qh-green-ink: #12382a;
+  --qh-sage-soft: #dfece3;
+  --qh-mint: #b9e3c7;
+  --qh-orange: #e98b4a;
+  --qh-orange-dark: #b95e28;
+  --qh-orange-soft: #fbe5d5;
+  --qh-display: 'Songti SC', STSong, 'Noto Serif CJK SC', Georgia, serif;
+  --qh-body: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --qh-data: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --qh-shadow-soft: 0 8px 24px rgb(18 56 42 / 5%);
+  --qh-shadow: 0 24px 70px rgb(18 56 42 / 12%);
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: var(--qh-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
-html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--qh-bg); }
-body { min-width: 320px; color: var(--qh-text); }
-button, textarea, input, select { font: inherit; }
-button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--qh-green); outline-offset: 2px; }
-::selection { color: white; background: rgb(77 130 63 / 72%); }
-* { scrollbar-color: #bfc8b8 transparent; scrollbar-width: thin; }
-*::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #bfc8b8; background-clip: padding-box; }
-*::-webkit-scrollbar-track { background: transparent; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--qh-bg);
+}
+body {
+  min-width: 320px;
+  color: var(--qh-text);
+}
+button,
+textarea,
+input,
+select {
+  font: inherit;
+}
+button {
+  color: inherit;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--qh-display);
+  font-weight: 700;
+}
+strong,
+b,
+input {
+  font-variant-numeric: tabular-nums;
+}
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--qh-orange);
+  outline-offset: 3px;
+}
+::selection {
+  color: white;
+  background: rgb(45 106 79 / 78%);
+}
+* {
+  scrollbar-color: #9db2a4 transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #9db2a4;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  input,
+  select,
+  summary {
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease,
+      box-shadow 160ms ease;
+  }
+  button:not(:disabled):active {
+    transform: translateY(1px);
+  }
+}

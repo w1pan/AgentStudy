@@ -255,6 +255,8 @@ def estimate_item(
         if portion_uncertainty is None
         else max(0.02, min(portion_uncertainty, 0.60))
     )
+    # Portion and density are independent evidence sources. Root-sum-square
+    # avoids the excessively wide interval produced by adding worst cases.
     combined_uncertainty = min(
         0.60,
         math.sqrt(portion_uncertainty ** 2 + food_uncertainty ** 2),
@@ -277,6 +279,8 @@ def aggregate_photo_estimate(items: list[dict[str, Any]]) -> tuple[int, int, str
         item.get("kcal_estimate", round((item["kcal_low"] + item["kcal_high"]) / 2))
         for item in items
     )
+    # Item errors are independent; the 4% term is a separate meal-wide bias
+    # for shared oil, cooking method and image-level systematic error.
     independent_uncertainty = math.sqrt(sum(
         item.get("uncertainty_kcal", (item["kcal_high"] - item["kcal_low"]) / 2) ** 2
         for item in items

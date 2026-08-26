@@ -601,6 +601,8 @@ def create_photo_meal(
     meal_id = uuid4()
     with connection() as conn:
         _require_profile(conn)
+        # Aggregate from server-owned item centers/errors before persistence;
+        # the client and the Agent never submit the final meal interval.
         kcal_low, kcal_high, estimate_confidence = aggregate_photo_estimate(items)
         conn.execute(
             """
@@ -615,6 +617,7 @@ def create_photo_meal(
             ),
         )
         _insert_meal_items(conn, meal_id, items)
+        # Meal, components and the derived daily summary commit atomically.
         _recompute_summary(conn, current_day, increment_version=True)
         return next(item for item in _load_meals(conn, current_day) if item.id == str(meal_id))
 
