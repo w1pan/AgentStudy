@@ -1,6 +1,6 @@
 :root {
-  --qh-bg: #eef3ef;
-  --qh-card: #fbfdf9;
+  --qh-bg: #f3f6f4;
+  --qh-card: #ffffff;
   --qh-ivory-strong: #e7ede8;
   --qh-text: #17251d;
   --qh-muted: #66756c;
@@ -14,7 +14,7 @@
   --qh-orange: #e98b4a;
   --qh-orange-dark: #b95e28;
   --qh-orange-soft: #fbe5d5;
-  --qh-display: 'Songti SC', STSong, 'Noto Serif CJK SC', Georgia, serif;
+  --qh-display: 'Songti SC', 'SimSun', STSong, 'Noto Serif CJK SC', Georgia, serif;
   --qh-body: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --qh-data: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --qh-shadow-soft: 0 8px 24px rgb(18 56 42 / 5%);
@@ -110,3 +110,5 @@ a:focus-visible {
     transform: translateY(1px);
   }
 }
+
+summary:focus-visible { outline: 3px solid var(--qh-orange); outline-offset: 3px; }

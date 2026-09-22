@@ -19,7 +19,7 @@ defineProps<{
       <strong>{{ value.low === value.high ? value.low : `${value.low}–${value.high}` }}</strong
       ><em>kcal</em>
     </div>
-    <div class="metric__foot"><span>可信区间</span><i /></div>
+    <div class="metric__foot"><span>{{ value.low === value.high ? '估算值' : '估算区间' }}</span><i /></div>
   </article>
 </template>
 
@@ -30,7 +30,7 @@ defineProps<{
   overflow: hidden;
   padding: 19px 20px 17px;
   border: 1px solid var(--qh-border);
-  border-radius: 20px 7px 20px 7px;
+  border-radius: 16px;
   background: var(--qh-card);
   box-shadow: var(--qh-shadow-soft);
 }
@@ -59,7 +59,7 @@ defineProps<{
 .metric__head small {
   overflow: hidden;
   font-family: var(--qh-data);
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -78,7 +78,7 @@ defineProps<{
 .metric em {
   color: var(--qh-muted);
   font-family: var(--qh-data);
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -89,7 +89,7 @@ defineProps<{
   gap: 10px;
   margin-top: 17px;
   color: var(--qh-muted);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 .metric__foot i {

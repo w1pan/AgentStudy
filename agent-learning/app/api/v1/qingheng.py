@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app.ai import generate_advice, photo_items, stream_follow_up
+from app.common.logger import logger
+from app.llm import chat_failure_detail
 from app.images import read_and_normalize_image
 from app.models.schemas import (
     AdviceResponse,
@@ -171,7 +173,10 @@ def advice() -> AdviceResponse:
     try:
         return generate_advice(facts)
     except Exception as exc:
-        raise HTTPException(status_code=503, detail="今日建议暂时不可用，请稍后重试") from exc
+        detail = chat_failure_detail(exc)
+        # Do not log provider bodies: they may contain request data or credentials.
+        logger.error("今日建议失败 kind=%s detail=%s", type(exc).__name__, detail)
+        raise HTTPException(status_code=503, detail=detail) from exc
 
 
 @router.post("/advice/follow-up")

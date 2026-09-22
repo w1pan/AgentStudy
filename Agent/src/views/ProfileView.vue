@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
 
-import { api, type DeficitPreset, type ProfilePayload } from '@/api/qingheng'
+import { type DeficitPreset, type ProfilePayload } from '@/api/qingheng'
 import { useQinghengStore } from '@/stores/qingheng'
 
 withDefaults(defineProps<{ onboarding?: boolean }>(), { onboarding: false })
@@ -45,7 +45,11 @@ async function save() {
 async function clearHistory() {
   const value = window.prompt('此操作会删除饮食、运动、每日体重和日汇总。请输入：清空全部历史记录')
   if (value !== '清空全部历史记录') return
-  await store.mutate(() => api.clearHistory())
+  try {
+    await store.clearHistory()
+  } catch {
+    // The store displays the failure in the shared error toast.
+  }
 }
 
 function selectPreset(value: DeficitPreset) {
@@ -101,7 +105,7 @@ function selectPreset(value: DeficitPreset) {
 
         <div class="formula-note">
           <strong>估算说明</strong>
-          <p>静息消耗采用 Mifflin–St Jeor 公式，乘以 1.2 日常系数并展示约 ±10% 区间；运动单独记录。</p>
+          <p>静息消耗结合日常活动与已记录运动，估算全天消耗。饮食热量以区间呈现。</p>
         </div>
 
         <div class="form-actions">

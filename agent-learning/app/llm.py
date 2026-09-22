@@ -11,6 +11,23 @@ from langchain_openai import ChatOpenAI
 ChatMessage = dict[str, Any]
 
 
+def chat_failure_detail(exc: Exception) -> str:
+    """Translate provider failures without exposing their raw response bodies."""
+    body = getattr(exc, "body", None)
+    error = body.get("error", body) if isinstance(body, dict) else {}
+    code = error.get("code") if isinstance(error, dict) else None
+    if code == "AllocationQuota.FreeTierOnly":
+        return "当前 AI 模型的免费额度已用完，且启用了“仅使用免费额度”。请在阿里云百炼控制台检查额度或付费设置后再试。"
+    status = getattr(exc, "status_code", None)
+    if status == 401:
+        return "AI 服务密钥验证失败，请检查后端的 DashScope API Key 配置。"
+    if status == 403:
+        return "AI 服务拒绝了请求，请检查百炼账户状态及当前模型的访问权限。"
+    if status == 429:
+        return "AI 服务当前请求受限，请检查额度或稍后重试。"
+    return "今日建议暂时不可用，请稍后重试"
+
+
 @lru_cache(maxsize=8)
 def _chat_model(model: str) -> BaseChatModel:
     """Build a provider-compatible LangChain model without adding an agent loop."""

@@ -365,10 +365,16 @@ def _generate_advice_uncached(
 你只能引用 facts 中已经存在的数字，不得重新计算、推断或生成任何新数字。
 只分析今天，给出行为调整与下一餐方向，不生成菜单、不诊断疾病、不羞辱用户。
 严格返回一个 JSON 对象，cards 必须按以下顺序且恰好三张：
-1. type=status：今日状态
-2. type=next_meal：下一餐方向
-3. type=risk_or_encouragement：有 risk_flags 时解释风险，否则积极反馈
+第一张 type=status：今日状态
+第二张 type=next_meal：下一餐方向
+第三张 type=risk_or_encouragement：有 risk_flags 时解释风险，否则积极反馈
 每张格式为 {{"type":"...","title":"...","body":"...","bullets":["..."]}}。
+提供适度详细、贴合记录的建议：标题不超过十八个汉字，正文通常一百二十至一百八十个汉字，配两至三条可执行要点，每条约二十五至四十五个汉字。
+今日状态：结合实际餐食、摄入与消耗区间解释当前情况，指出已有记录的优点与可调整之处；不要把尚未记录的餐次当成未进食，不要把记录中的热量缺口当成全天最终结果。
+下一餐方向：结合已记录的食物类别说明优先补充或调整什么、为什么，并给出容易执行的搭配原则；不编造营养素含量，不提供克数级菜单。
+风险或鼓励：有风险标记时用易懂语言解释其含义和适当的应对方向；没有时给出基于记录的具体反馈和后续记录建议，不泛泛鼓励。
+正文负责解释依据与原因，要点负责具体行动，避免相互复述。事实不足时明确说明缺少的信息，不为凑字数推断用户行为或重复套话。
+只能引用 facts 已有数字；不添加序号、内部思考过程或额外字段。
 <facts>{facts_json}</facts>"""
     raw = invoke_chat(
         model=model,
@@ -377,6 +383,11 @@ def _generate_advice_uncached(
             {"role": "user", "content": prompt},
         ],
         temperature=0.2,
+        # Calculations are already verified server-side; this call only writes
+        # explanatory cards. Leave enough output budget for all three JSON objects.
+        extra_body={"enable_thinking": False},
+        response_format={"type": "json_object"},
+        max_completion_tokens=2400,
     )
     payload = _json_object(raw)
     allowed_numbers = _allowed_number_tokens(facts_json)

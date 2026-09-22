@@ -1,0 +1,7 @@
+**
+!Agent/
+!Agent/dist/
+!Agent/dist/**
+!deploy/
+!deploy/ecs/
+!deploy/ecs/nginx.conf

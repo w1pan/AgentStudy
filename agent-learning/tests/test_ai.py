@@ -168,6 +168,28 @@ class AiTrustTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "服务端事实之外"):
                 generate_advice(facts)
 
+    def test_fast_advice_rejects_truncated_json_and_can_retry(self):
+        payload = {"cards": [
+            {"type": "status", "title": "状态", "body": "持续记录", "bullets": []},
+            {"type": "next_meal", "title": "下一餐", "body": "均衡搭配", "bullets": []},
+            {"type": "risk_or_encouragement", "title": "提醒", "body": "保持规律", "bullets": []},
+        ]}
+        facts = {"date": "2026-09-07", "data_version": 1, "verified_ranges_kcal": {}}
+        with patch("app.ai.invoke_chat", side_effect=[
+            '{"cards":[{"type":"status",', json.dumps(payload, ensure_ascii=False),
+        ]) as invoke:
+            with self.assertRaises(json.JSONDecodeError):
+                generate_advice(facts)
+            result = generate_advice(facts)
+            cached = generate_advice(facts)
+
+        self.assertEqual(len(result.cards), 3)
+        self.assertEqual(cached, result)
+        self.assertEqual(invoke.call_count, 2)
+        self.assertEqual(invoke.call_args.kwargs["extra_body"], {"enable_thinking": False})
+        self.assertEqual(invoke.call_args.kwargs["response_format"], {"type": "json_object"})
+        self.assertEqual(invoke.call_args.kwargs["max_completion_tokens"], 2400)
+
     def test_follow_up_allows_fact_numbers_split_across_stream_chunks(self):
         chunks = ["摄入 5", "00 kcal"]
         facts = {"date": "2026-08-19", "data_version": 1, "intake": 500}

@@ -35,4 +35,30 @@ describe('qingheng store initialization', () => {
     expect(store.error).toBe('今日数据暂时不可用')
     expect(store.initialized).toBe(true)
   })
+
+  it('retains the committed weight if fetching the updated profile fails', async () => {
+    const store = useQinghengStore()
+    store.profile = { ...profile }
+    vi.spyOn(api, 'upsertWeight').mockResolvedValue({
+      recorded_date: '2026-09-22', weight_kg: 59, editable: true,
+    })
+    vi.spyOn(api, 'getProfile').mockRejectedValue(new Error('档案刷新失败'))
+
+    await expect(store.saveWeight(59)).rejects.toThrow('档案刷新失败')
+
+    expect(store.profile.current_weight_kg).toBe(59)
+    expect(store.error).toBe('档案刷新失败')
+    expect(store.busy).toBe(false)
+  })
+
+  it('keeps the old profile if the weight write fails', async () => {
+    const store = useQinghengStore()
+    store.profile = { ...profile }
+    vi.spyOn(api, 'upsertWeight').mockRejectedValue(new Error('保存失败'))
+
+    await expect(store.saveWeight(59)).rejects.toThrow('保存失败')
+
+    expect(store.profile).toEqual(profile)
+    expect(store.busy).toBe(false)
+  })
 })

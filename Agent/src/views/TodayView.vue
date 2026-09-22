@@ -41,6 +41,8 @@ const balanceStyles = computed(() => {
   const targetEnd = scalePosition(summary.target_deficit.high)
   return {
     '--balance-position': `${scalePosition(midpoint)}%`,
+    '--range-start': `${scalePosition(summary.deficit.low)}%`,
+    '--range-width': `${Math.max(0.5, scalePosition(summary.deficit.high) - scalePosition(summary.deficit.low))}%`,
     '--target-start': `${targetStart}%`,
     '--target-width': `${Math.max(3, targetEnd - targetStart)}%`,
   }
@@ -48,6 +50,7 @@ const balanceStyles = computed(() => {
 const balanceNarrative = computed(() => {
   const summary = detail.value?.summary
   if (!summary) return ''
+  if (!detail.value?.meals.length) return '记下第一餐，开始了解今天'
   if (summary.deficit.high < 0) return '今天处于能量盈余区间'
   if (
     summary.deficit.low <= summary.target_deficit.high &&
@@ -115,7 +118,11 @@ async function removeExercise(exercise: Exercise) {
 }
 
 async function saveWeight() {
-  await store.mutate(() => api.upsertWeight(weight.value))
+  try {
+    await store.saveWeight(weight.value)
+  } catch {
+    // The store displays the save/refresh error in the shared error toast.
+  }
 }
 
 function closeMealDialog() {
@@ -129,7 +136,12 @@ function closeExerciseDialog() {
 }
 
 async function generateAdvice() {
-  await store.generateAdvice()
+  try {
+    await store.generateAdvice()
+  } catch {
+    // The store exposes the API error through the app's error notification.
+    // A Vue event handler must consume the rejection after it has been reported.
+  }
 }
 
 function openAdvice(card: AdviceCard) {
@@ -147,53 +159,16 @@ function updateConversation(messages: FollowUpMessage[]) {
     <header class="page-header">
       <div class="header-meta">
         <p class="eyebrow">{{ dateLabel }}</p>
-        <span>今日饮食记录</span>
+        <span>每一餐，都有迹可循。</span>
       </div>
       <button class="secondary-action" @click="mealDialog = true"><span>＋</span> 手动记录</button>
     </header>
 
-    <section class="photo-hero">
-      <div class="photo-intro">
-        <p class="photo-kicker"><i /> 拍照估算 · 主功能</p>
-        <h1>拍下这一餐，<br /><em>自动拆解并入账。</em></h1>
-        <p class="photo-lead">
-          上传一张整餐照片，轻衡会识别食物与份量，给出热量区间，并直接加入今天的饮食记录。
-        </p>
-        <ol class="photo-steps" aria-label="拍照估算步骤">
-          <li>
-            <b>1</b><span><strong>拍整餐</strong><small>食物尽量完整入镜</small></span>
-          </li>
-          <li>
-            <b>2</b><span><strong>确认餐次</strong><small>早餐、午餐或晚餐</small></span>
-          </li>
-          <li>
-            <b>3</b><span><strong>自动入账</strong><small>保留估算来源与区间</small></span>
-          </li>
-        </ol>
-        <button class="manual-link" @click="mealDialog = true">
-          不方便拍照？改用手动记录 <span>→</span>
-        </button>
-      </div>
-
-      <button class="capture-card" aria-label="打开拍照估算" @click="photoDialog = true">
-        <i class="viewfinder-corner viewfinder-corner--tl" /><i
-          class="viewfinder-corner viewfinder-corner--tr"
-        /><i class="viewfinder-corner viewfinder-corner--bl" /><i
-          class="viewfinder-corner viewfinder-corner--br"
-        />
-        <span class="camera-glyph"><i /><b /></span>
-        <strong>打开相机或选择照片</strong>
-        <small>支持 JPEG、PNG、WebP · 最大 10 MiB</small>
-        <span class="capture-cta">开始拍照估算 <b>↗</b></span>
-        <span class="capture-privacy"><i /> 原图识别后立即释放</span>
-      </button>
-    </section>
-
     <section class="day-overview">
       <header class="overview-heading">
         <div>
-          <p class="eyebrow">拍照记录后的结果</p>
-          <h2>今日能量概览</h2>
+          <p class="eyebrow">{{ dateLabel }} 的能量手账</p>
+          <h1>今天，轻一点。</h1>
         </div>
         <span>{{ detail.meals.length }} 餐已入账</span>
       </header>
@@ -206,14 +181,16 @@ function updateConversation(messages: FollowUpMessage[]) {
             </div>
             <span class="privacy-stamp"><i /> 本机计算</span>
           </header>
-          <div class="balance-ruler" aria-label="今日能量平衡位置">
+          <div class="balance-ruler" :class="{ 'balance-ruler--empty': !detail.meals.length }" aria-label="今日能量平衡位置">
             <div class="ruler-track">
-              <span class="target-zone" /><span class="balance-marker"><i /></span>
+              <span class="target-zone" /><span v-if="detail.meals.length" class="estimate-zone" /><span v-if="detail.meals.length" class="balance-marker"><i /></span>
             </div>
             <div class="ruler-labels">
-              <span>能量盈余</span><span>接近平衡</span><span>目标缺口</span><span>缺口偏高</span>
+              <span>−600</span><span>0</span><span>1,000 kcal</span>
             </div>
           </div>
+          <p class="ruler-legend"><span>绿色 · 目标区间</span><span>{{ detail.meals.length ? '橙色 · 当前估算区间' : '等待记录第一餐' }}</span></p>
+          <p class="ruler-note">全天预计消耗 − 已记录摄入 · 超出刻度的区间显示在边缘</p>
         </section>
         <div class="metrics-grid">
           <RangeMetric label="今日摄入" :value="detail.summary.intake" />
@@ -233,6 +210,13 @@ function updateConversation(messages: FollowUpMessage[]) {
       </div>
     </section>
 
+    <section class="capture-strip">
+      <div class="capture-symbol" aria-hidden="true"><span>＋</span></div>
+      <div class="capture-copy"><p class="eyebrow">一餐一记</p><h2>{{ detail.meals.length ? '下一餐，也轻松记下。' : '从眼前这一餐开始。' }}</h2><p>拍下整餐，自动估算食物与热量。</p></div>
+      <button class="capture-button" @click="photoDialog = true">拍照记录 <span aria-hidden="true">↗</span></button>
+    </section>
+    <p v-if="!detail.meals.length" class="first-meal-tip">让食物完整入镜，选择餐次后即可入账。也可以使用右上角的手动记录。</p>
+
     <div v-if="detail.summary.risk_flags.length" class="risk-chip">
       <span>!</span>
       <p>当前档案存在需要留意的健康风险；生成今日建议可查看原因。计算仍可继续。</p>
@@ -244,14 +228,14 @@ function updateConversation(messages: FollowUpMessage[]) {
           <header class="panel-header">
             <div>
               <p class="eyebrow">今日记录</p>
-              <h2>饮食账目</h2>
+              <h2>今日餐食</h2>
             </div>
             <span>{{ detail.meals.length }} 餐已记</span>
           </header>
           <div v-if="detail.meals.length" class="meal-list">
             <article v-for="meal in detail.meals" :key="meal.id" class="meal-card">
               <div class="meal-card__top">
-                <div class="meal-icon">{{ meal.entry_method === 'photo' ? '▣' : '餐' }}</div>
+                <div class="meal-icon"><time>{{ formatTime(meal.recorded_time) }}</time><i /></div>
                 <div class="meal-title">
                   <div>
                     <strong>{{ meal.display_name }}</strong
@@ -317,7 +301,7 @@ function updateConversation(messages: FollowUpMessage[]) {
           <header class="panel-header">
             <div>
               <p class="eyebrow">额外消耗</p>
-              <h2>运动账目</h2>
+              <h2>活动记录</h2>
             </div>
             <button class="text-action" @click="exerciseDialog = true">＋ 记录运动</button>
           </header>
@@ -352,13 +336,13 @@ function updateConversation(messages: FollowUpMessage[]) {
 
       <aside class="side-column">
         <section class="panel weight-card">
-          <p class="eyebrow">更新能量基线</p>
+          <p class="eyebrow">身体记录</p>
           <h2>今日体重</h2>
           <div class="weight-input">
             <input v-model.number="weight" type="number" min="30" max="300" step="0.1" /><b>kg</b>
           </div>
-          <button :disabled="store.busy" @click="saveWeight">更新体重与基线</button>
-          <small>历史记录只读，不绘制趋势图。</small>
+          <button :disabled="store.busy" @click="saveWeight">保存今日体重</button>
+          <small>每天一次，记录身体的小变化。</small>
         </section>
 
         <section class="panel advice-panel">
@@ -372,7 +356,7 @@ function updateConversation(messages: FollowUpMessage[]) {
               @click="openAdvice(card)"
             >
               <span>{{
-                card.type === 'status' ? '01' : card.type === 'next_meal' ? '02' : '03'
+                card.type === 'status' ? '衡' : card.type === 'next_meal' ? '餐' : '叮'
               }}</span>
               <div>
                 <strong>{{ card.title }}</strong>
@@ -442,14 +426,14 @@ function updateConversation(messages: FollowUpMessage[]) {
   border-left: 1px solid var(--qh-border-strong);
   color: var(--qh-muted);
   font-family: var(--qh-data);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 .secondary-action {
   min-height: 39px;
   padding: 0 14px;
   border: 1px solid var(--qh-border-strong);
-  border-radius: 13px 5px 13px 5px;
+  border-radius: 12px;
   background: rgb(251 253 249 / 82%);
   font-size: 12px;
   font-weight: 800;
@@ -462,278 +446,6 @@ function updateConversation(messages: FollowUpMessage[]) {
 .secondary-action:hover {
   border-color: var(--qh-green);
   background: white;
-}
-
-.photo-hero {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
-  gap: clamp(28px, 5vw, 72px);
-  align-items: stretch;
-  overflow: hidden;
-  padding: clamp(30px, 4.5vw, 58px);
-  border: 1px solid #244c3b;
-  border-radius: 38px 12px 38px 12px;
-  color: white;
-  background: var(--qh-green-ink);
-  box-shadow: 0 24px 56px rgb(18 56 42 / 18%);
-}
-.photo-hero::before {
-  position: absolute;
-  top: -230px;
-  left: 31%;
-  width: 620px;
-  height: 480px;
-  border: 1px solid rgb(185 227 199 / 12%);
-  border-radius: 50%;
-  content: '';
-  transform: rotate(-13deg);
-}
-.photo-hero::after {
-  position: absolute;
-  bottom: -220px;
-  left: -100px;
-  width: 500px;
-  height: 360px;
-  border: 1px solid rgb(185 227 199 / 9%);
-  border-radius: 50%;
-  content: '';
-  transform: rotate(10deg);
-}
-.photo-intro {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-}
-.photo-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: #a9cbb5;
-  font-family: var(--qh-data);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-}
-.photo-kicker i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--qh-orange);
-  box-shadow: 0 0 0 4px rgb(233 139 74 / 10%);
-}
-.photo-intro h1 {
-  margin: 15px 0 14px;
-  font-size: clamp(43px, 5.2vw, 70px);
-  line-height: 1.08;
-  letter-spacing: -0.075em;
-}
-.photo-intro h1 em {
-  color: var(--qh-mint);
-  font-style: normal;
-}
-.photo-lead {
-  max-width: 640px;
-  margin: 0;
-  color: #b7cdbf;
-  font-size: 14px;
-  line-height: 1.8;
-}
-.photo-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
-  margin: 28px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.photo-steps li {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 9px;
-  min-width: 0;
-  align-items: start;
-}
-.photo-steps li > b {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border: 1px solid rgb(185 227 199 / 22%);
-  border-radius: 50%;
-  color: var(--qh-mint);
-  font-family: var(--qh-data);
-  font-size: 9px;
-}
-.photo-steps span {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-.photo-steps strong {
-  font-size: 11px;
-}
-.photo-steps small {
-  color: #779a86;
-  font-size: 9px;
-  line-height: 1.4;
-}
-.manual-link {
-  margin-top: 24px;
-  padding: 0;
-  border: 0;
-  color: #94b5a1;
-  background: transparent;
-  font-size: 11px;
-  cursor: pointer;
-}
-.manual-link span {
-  display: inline-block;
-  margin-left: 5px;
-}
-.manual-link:hover {
-  color: white;
-}
-.capture-card {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  min-height: 390px;
-  padding: 34px 28px 25px;
-  border: 1px solid rgb(185 227 199 / 24%);
-  border-radius: 29px 8px 29px 8px;
-  color: white;
-  background: linear-gradient(145deg, rgb(255 255 255 / 9%), rgb(255 255 255 / 3%));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 2%);
-  cursor: pointer;
-}
-.capture-card:hover {
-  border-color: rgb(185 227 199 / 48%);
-  background: linear-gradient(145deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 5%));
-  transform: translateY(-2px);
-}
-.viewfinder-corner {
-  position: absolute;
-  width: 31px;
-  height: 31px;
-  border-color: #91bca0;
-}
-.viewfinder-corner--tl {
-  top: 18px;
-  left: 18px;
-  border-top: 2px solid;
-  border-left: 2px solid;
-}
-.viewfinder-corner--tr {
-  top: 18px;
-  right: 18px;
-  border-top: 2px solid;
-  border-right: 2px solid;
-}
-.viewfinder-corner--bl {
-  bottom: 18px;
-  left: 18px;
-  border-bottom: 2px solid;
-  border-left: 2px solid;
-}
-.viewfinder-corner--br {
-  right: 18px;
-  bottom: 18px;
-  border-right: 2px solid;
-  border-bottom: 2px solid;
-}
-.camera-glyph {
-  position: relative;
-  display: grid;
-  width: 86px;
-  height: 86px;
-  place-items: center;
-  margin-bottom: 20px;
-  border: 1px solid rgb(185 227 199 / 24%);
-  border-radius: 50%;
-  background: rgb(185 227 199 / 8%);
-  box-shadow: 0 0 0 11px rgb(185 227 199 / 3%);
-}
-.camera-glyph::before {
-  width: 39px;
-  height: 29px;
-  border: 2px solid var(--qh-mint);
-  border-radius: 7px;
-  content: '';
-}
-.camera-glyph::after {
-  position: absolute;
-  top: 25px;
-  width: 17px;
-  height: 7px;
-  border: 2px solid var(--qh-mint);
-  border-bottom: 0;
-  border-radius: 4px 4px 0 0;
-  content: '';
-}
-.camera-glyph i {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--qh-mint);
-  border-radius: 50%;
-}
-.camera-glyph b {
-  position: absolute;
-  top: 35px;
-  right: 27px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--qh-orange);
-}
-.capture-card > strong {
-  font-family: var(--qh-display);
-  font-size: 23px;
-}
-.capture-card > small {
-  margin-top: 8px;
-  color: #88a998;
-  font-size: 10px;
-}
-.capture-cta {
-  min-width: 210px;
-  margin-top: 24px;
-  padding: 13px 18px;
-  border-radius: 15px 5px 15px 5px;
-  color: var(--qh-green-ink);
-  background: var(--qh-mint);
-  font-size: 12px;
-  font-weight: 900;
-}
-.capture-cta b {
-  margin-left: 10px;
-  font-family: var(--qh-data);
-}
-.capture-privacy {
-  position: absolute;
-  bottom: 25px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #759783;
-  font-size: 9px;
-}
-.capture-privacy i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--qh-mint);
 }
 
 .day-overview {
@@ -754,7 +466,7 @@ function updateConversation(messages: FollowUpMessage[]) {
 .overview-heading > span {
   color: var(--qh-muted);
   font-family: var(--qh-data);
-  font-size: 9px;
+  font-size: 12px;
 }
 .overview-layout {
   display: grid;
@@ -767,7 +479,7 @@ function updateConversation(messages: FollowUpMessage[]) {
   min-width: 0;
   padding: 20px;
   border: 1px solid #c9d7cd;
-  border-radius: 22px 7px 22px 7px;
+  border-radius: 20px;
   background: #e4eee7;
   box-shadow: var(--qh-shadow-soft);
 }
@@ -806,7 +518,7 @@ function updateConversation(messages: FollowUpMessage[]) {
   border-radius: 999px;
   color: var(--qh-muted);
   background: rgb(255 255 255 / 34%);
-  font-size: 9px;
+  font-size: 12px;
 }
 .privacy-stamp i {
   width: 6px;
@@ -878,7 +590,7 @@ function updateConversation(messages: FollowUpMessage[]) {
   margin-top: 14px;
   color: #688074;
   font-family: var(--qh-data);
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 .ruler-labels span:nth-child(2),
@@ -940,7 +652,7 @@ function updateConversation(messages: FollowUpMessage[]) {
 .panel {
   overflow: hidden;
   border: 1px solid var(--qh-border);
-  border-radius: 24px 8px 24px 8px;
+  border-radius: 20px;
   background: var(--qh-card);
   box-shadow: var(--qh-shadow-soft);
 }
@@ -961,7 +673,7 @@ function updateConversation(messages: FollowUpMessage[]) {
 .panel-header > span {
   color: var(--qh-muted);
   font-family: var(--qh-data);
-  font-size: 9px;
+  font-size: 12px;
 }
 .text-action {
   border: 0;
@@ -1017,14 +729,14 @@ function updateConversation(messages: FollowUpMessage[]) {
 .meal-title span {
   color: var(--qh-muted);
   font-family: var(--qh-data);
-  font-size: 9px;
+  font-size: 12px;
 }
 .meal-title b {
   padding: 3px 6px;
   border-radius: 6px;
   color: var(--qh-orange-dark);
   background: var(--qh-orange-soft);
-  font-size: 9px;
+  font-size: 12px;
 }
 .meal-title p {
   margin: 6px 0 0;
@@ -1041,7 +753,7 @@ function updateConversation(messages: FollowUpMessage[]) {
   white-space: nowrap;
 }
 .meal-kcal small {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.05em;
 }
 details {
@@ -1074,7 +786,7 @@ summary:hover {
 .component-list small,
 .component-list em {
   color: var(--qh-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
 }
 .component-list .portion-detail {
@@ -1136,7 +848,7 @@ summary:hover {
   margin-top: 10px;
   padding: 10px 15px;
   border: 0;
-  border-radius: 13px 5px 13px 5px;
+  border-radius: 12px;
   color: white;
   background: var(--qh-green);
   font-weight: 700;
@@ -1275,7 +987,7 @@ summary:hover {
   color: var(--qh-green-dark);
   background: var(--qh-sage-soft);
   font-family: var(--qh-data);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 .advice-card > div {
@@ -1333,9 +1045,6 @@ summary:hover {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .photo-hero {
-    animation: settle-in 380ms ease both;
-  }
   .day-overview {
     animation: settle-in 500ms 70ms ease both;
   }
@@ -1351,10 +1060,6 @@ summary:hover {
   }
 }
 @media (max-width: 1100px) {
-  .photo-hero {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 32px;
-  }
   .overview-layout {
     grid-template-columns: 1fr;
   }
@@ -1366,12 +1071,6 @@ summary:hover {
   }
 }
 @media (max-width: 900px) {
-  .photo-hero {
-    grid-template-columns: 1fr;
-  }
-  .capture-card {
-    min-height: 320px;
-  }
 }
 @media (max-width: 760px) {
   .today-page {
@@ -1380,22 +1079,15 @@ summary:hover {
   .page-header {
     align-items: center;
   }
-  .photo-hero {
-    padding: 27px 22px 22px;
-    border-radius: 28px 8px 28px 8px;
-  }
-  .photo-intro h1 {
-    font-size: 46px;
-  }
   .balance-board {
     padding: 20px;
-    border-radius: 22px 7px 22px 7px;
+    border-radius: 20px;
   }
   .privacy-stamp {
     display: none;
   }
   .ruler-labels {
-    font-size: 7px;
+    font-size: 12px;
   }
   .metrics-grid {
     grid-template-columns: 1fr;
@@ -1418,27 +1110,6 @@ summary:hover {
   .secondary-action {
     min-height: 36px;
     padding: 0 11px;
-  }
-  .photo-intro h1 {
-    font-size: 41px;
-  }
-  .photo-lead {
-    font-size: 13px;
-  }
-  .photo-steps {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-top: 23px;
-  }
-  .capture-card {
-    min-height: 315px;
-    padding-inline: 18px;
-  }
-  .capture-card > strong {
-    font-size: 20px;
-  }
-  .capture-cta {
-    min-width: 205px;
   }
   .overview-heading h2 {
     font-size: 22px;
@@ -1464,5 +1135,70 @@ summary:hover {
   .panel-header {
     padding: 20px;
   }
+}
+
+/* The daily ledger: one instrument, a quiet list, and one primary action. */
+.overview-heading h1 { margin: 8px 0 0; font-size: clamp(30px, 3.2vw, 44px); letter-spacing: .02em; }
+.day-overview { margin-top: 28px; }
+.overview-heading { margin-bottom: 24px; }
+.overview-layout { grid-template-columns: 1fr; gap: 16px; }
+.balance-board { padding: 28px 30px 20px; background: #e6eeeb; box-shadow: none; }
+.balance-board::after { display: none; }
+.balance-heading h3 { font-family: var(--qh-body); font-size: 20px; font-weight: 500; }
+.balance-ruler { margin: 36px 0 0; }
+.ruler-track { height: 30px; background: repeating-linear-gradient(90deg, #a1b5ac 0 1px, transparent 1px 2.5%); border-bottom: 1px solid #a1b5ac; }
+.ruler-track::before, .ruler-track::after { display: none; }
+.target-zone { top: -6px; height: 42px; min-width: 0; border-radius: 5px; background: #619b7933; }
+.estimate-zone { position: absolute; left: var(--range-start); width: var(--range-width); height: 6px; top: 12px; border-radius: 4px; background: #bd703d; }
+.balance-marker { width: 13px; height: 13px; border-width: 3px; background: #bd703d; box-shadow: 0 0 0 1px #bd703d; }
+.balance-marker i { display: none; }
+.ruler-labels { display: block; position: relative; height: 18px; margin-top: 12px; font-size: 12px; }
+.ruler-labels span { position: absolute; top: 0; }
+.ruler-labels span:first-child { left: 0; }
+.ruler-labels span:nth-child(2) { display: inline; left: 37.5%; transform: translateX(-50%); }
+.ruler-labels span:last-child { right: 0; }
+.ruler-legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 20px 0 0; font-size: 12px; color: var(--qh-green-dark); }
+.ruler-legend span:last-child { color: #985423; }
+.ruler-note { margin: 8px 0 0; font-size: 12px; color: var(--qh-muted); line-height: 1.6; }
+.capture-strip { display: flex; align-items: center; gap: 22px; padding: 22px 26px; margin-top: 20px; border: 1px solid var(--qh-border); border-radius: 24px 8px 24px 8px; background: var(--qh-card); }
+.capture-symbol { display: grid; place-items: center; width: 58px; height: 58px; flex-shrink: 0; border: 1px solid #8cae9c; border-radius: 18px 4px; color: var(--qh-green); background: #e6eeeb; }
+.capture-symbol span { font-size: 30px; font-weight: 300; }
+.capture-copy { flex: 1; }
+.capture-copy h2 { margin: 4px 0; font-size: 23px; }
+.capture-copy > p:last-child { margin: 6px 0 0; font-size: 13px; color: var(--qh-muted); }
+.capture-button { display: flex; align-items: center; gap: 26px; min-height: 48px; padding: 0 22px; border: 0; border-radius: 12px; background: var(--qh-green-ink); color: white; cursor: pointer; }
+.capture-button:hover { background: var(--qh-green); }
+.first-meal-tip { margin: 10px 4px 0; font-size: 12px; color: var(--qh-muted); line-height: 1.7; }
+.meal-list { gap: 0; padding: 0 24px; }
+.meal-card { position: relative; padding: 24px 0; border: 0; border-bottom: 1px solid var(--qh-border); border-radius: 0; background: transparent; }
+.meal-card:last-child { border-bottom: 0; }
+.meal-card:hover { background: transparent; }
+.meal-icon { width: 52px; height: auto; border: 0; border-radius: 0; background: transparent; gap: 12px; font-family: var(--qh-data); font-size: 12px; font-weight: 400; }
+.meal-icon i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--qh-green); box-shadow: 0 0 0 5px var(--qh-sage-soft); }
+.meal-title p { line-height: 1.8; }
+.meal-card details, .meal-card footer { margin-left: 65px; }
+.meal-card summary { padding-block: 10px; cursor: pointer; }
+.meal-card footer button { min-height: 36px; }
+@media (prefers-reduced-motion: no-preference) {
+  .balance-marker, .estimate-zone { transition: left 400ms ease, width 400ms ease; }
+}
+@media (max-width: 760px) {
+  .day-overview { margin-top: 20px; }
+  .overview-heading { gap: 12px; }
+  .overview-heading > span { white-space: nowrap; }
+  .balance-board { padding: 22px 18px 18px; }
+  .metrics-grid { grid-template-columns: 1fr; gap: 8px; }
+  .metrics-grid :deep(.metric) { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 14px 16px; }
+  .metrics-grid :deep(.metric__head) { display: grid; gap: 5px; }
+  .metrics-grid :deep(.metric__value) { margin: 0; }
+  .metrics-grid :deep(.metric__foot) { display: none; }
+  .capture-strip { gap: 12px; padding: 16px; flex-wrap: nowrap; }
+  .capture-symbol { display: none; }
+  .capture-copy h2 { font-size: 17px; }
+  .capture-copy > p:last-child { display: none; }
+  .capture-button { flex-shrink: 0; min-height: 46px; padding: 0 14px; gap: 10px; font-size: 14px; }
+  .meal-list { padding: 0 16px; }
+  .meal-card__top { gap: 10px; }
+  .meal-card details, .meal-card footer { margin-left: 62px; }
 }
 </style>

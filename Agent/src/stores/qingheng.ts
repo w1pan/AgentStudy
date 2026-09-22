@@ -11,6 +11,7 @@ export const useQinghengStore = defineStore('qingheng', () => {
   const busy = ref(false)
   const error = ref('')
   const adviceCache = ref<Record<string, AdviceResponse>>({})
+  let adviceGeneration = 0
 
   const hasProfile = computed(() => profile.value !== null)
   const adviceKey = computed(() => {
@@ -88,10 +89,12 @@ export const useQinghengStore = defineStore('qingheng', () => {
 
   async function generateAdvice() {
     if (cachedAdvice.value) return cachedAdvice.value
+    const generation = adviceGeneration
     busy.value = true
     error.value = ''
     try {
       const response = await api.generateAdvice()
+      if (generation !== adviceGeneration) return null
       adviceCache.value[`${response.record_date}:${response.data_version}`] = response
       return response
     } catch (value) {
@@ -100,6 +103,27 @@ export const useQinghengStore = defineStore('qingheng', () => {
     } finally {
       busy.value = false
     }
+  }
+
+  async function clearHistory() {
+    await mutate(async () => {
+      await api.clearHistory()
+      // Versions can be reused after deletion; invalidate before refreshing today.
+      adviceGeneration += 1
+      adviceCache.value = {}
+      today.value = null
+    })
+  }
+
+  async function saveWeight(weightKg: number) {
+    await mutate(async () => {
+      const saved = await api.upsertWeight(weightKg)
+      // Preserve the committed weight even if a subsequent refresh fails.
+      if (profile.value) {
+        profile.value = { ...profile.value, current_weight_kg: saved.weight_kg }
+      }
+      profile.value = await api.getProfile()
+    })
   }
 
   function clearError() {
@@ -117,6 +141,8 @@ export const useQinghengStore = defineStore('qingheng', () => {
     initialize,
     refreshToday,
     saveProfile,
+    saveWeight,
+    clearHistory,
     mutate,
     generateAdvice,
     clearError,

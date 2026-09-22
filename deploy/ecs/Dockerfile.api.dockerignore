@@ -1,0 +1,13 @@
+**
+!agent-learning/
+!agent-learning/pyproject.toml
+!agent-learning/uv.lock
+!agent-learning/README.md
+!agent-learning/app/
+!agent-learning/app/**
+!agent-learning/db/
+!agent-learning/db/**
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*

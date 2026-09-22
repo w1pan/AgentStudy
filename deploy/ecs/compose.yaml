@@ -1,0 +1,68 @@
+name: qingheng
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: public.ecr.aws/docker/library/postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qingheng
+      POSTGRES_DB: qingheng
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qingheng -d qingheng"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/ecs/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://qingheng:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/qingheng
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?Set DASHSCOPE_API_KEY in .env}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      DASHSCOPE_TIMEOUT_SECONDS: "100"
+      VISION_MODEL: ${VISION_MODEL:-qwen3.8-max-0902}
+      ADVICE_MODEL: ${ADVICE_MODEL:-qwen3.8-max-0902}
+      NUTRITION_REACT_ENABLED: ${NUTRITION_REACT_ENABLED:-true}
+      NUTRITION_REACT_MODEL: ${NUTRITION_REACT_MODEL:-qwen3.8-max-0902}
+      NUTRITION_WEB_SEARCH_ENABLED: ${NUTRITION_WEB_SEARCH_ENABLED:-true}
+      NUTRITION_SEARCH_MODEL: ${NUTRITION_SEARCH_MODEL:-qwen3.8-max-0902}
+      NUTRITION_SEARCH_STRATEGY: ${NUTRITION_SEARCH_STRATEGY:-max}
+      CORS_ORIGINS: http://127.0.0.1:18080,http://localhost:18080
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/v1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    logging: *logging
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/ecs/Dockerfile.web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  postgres_data:
