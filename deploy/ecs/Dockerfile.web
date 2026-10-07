@@ -1,3 +1,6 @@
 FROM public.ecr.aws/docker/library/nginx:stable-alpine
+# The project provides its own IPv4 config; skip the optional distro checksum
+# probe, which stalled at `apk manifest nginx` on the deployed Alpine image.
+RUN chmod -x /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
 COPY deploy/ecs/nginx.conf /etc/nginx/conf.d/default.conf
 COPY Agent/dist/ /usr/share/nginx/html/

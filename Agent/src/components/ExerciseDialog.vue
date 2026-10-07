@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vDialog } from '@/utils/dialog'
 import { computed, onMounted, ref } from 'vue'
 
 import { api, type Exercise, type Intensity, type MetActivity } from '@/api/qingheng'
@@ -60,8 +61,8 @@ async function submit() {
 </script>
 
 <template>
-  <div class="modal-backdrop" @mousedown.self="emit('close')">
-    <section class="exercise-dialog" role="dialog" aria-modal="true">
+  <div v-dialog="() => emit('close')" class="modal-backdrop" @mousedown.self="emit('close')">
+    <section class="exercise-dialog" role="dialog" aria-modal="true" aria-label="记录运动">
       <header><div><p>运动消耗</p><h2>{{ exercise ? '编辑运动' : '记录运动' }}</h2></div><button @click="emit('close')">×</button></header>
       <div class="form-grid">
         <label><span>项目</span><select v-model="activityId"><option v-for="activity in activities" :key="activity.id" :value="activity.id">{{ activity.name }}</option></select></label>
@@ -81,12 +82,12 @@ async function submit() {
 <style scoped>
 .modal-backdrop { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(33 38 30 / 38%); backdrop-filter: blur(4px); }
 .exercise-dialog { width: min(560px, 100%); padding: 26px; border: 1px solid var(--qh-border); border-radius: 24px; background: var(--qh-card); box-shadow: 0 28px 80px rgb(30 45 26 / 22%); }
-header { display: flex; align-items: flex-start; justify-content: space-between; } header p, h2 { margin: 0; } header p { color: var(--qh-green-dark); font-size: 12px; font-weight: 800; } h2 { margin-top: 5px; font-size: 24px; } header button { width: 38px; height: 38px; border: 0; border-radius: 12px; color: var(--qh-muted); background: var(--qh-sage-soft); font-size: 25px; cursor: pointer; }
+header { display: flex; align-items: flex-start; justify-content: space-between; } header p, h2 { margin: 0; } header p { color: var(--qh-brand); font-size: 12px; font-weight: 800; } h2 { margin-top: 5px; font-size: 24px; } header button { width: 38px; height: 38px; border: 0; border-radius: 12px; color: var(--qh-muted); background: var(--qh-brand-soft); font-size: 25px; cursor: pointer; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; } label { display: grid; gap: 7px; color: var(--qh-muted); font-size: 12px; font-weight: 700; } input, select { width: 100%; height: 43px; padding: 0 11px; border: 1px solid var(--qh-border-strong); border-radius: 11px; color: var(--qh-text); background: white; }.input-unit { position: relative; }.input-unit input { padding-right: 52px; }.input-unit b { position: absolute; top: 13px; right: 12px; }
-.estimate { display: grid; grid-template-columns: 1fr auto; gap: 4px 15px; margin-top: 18px; padding: 16px; border-radius: 14px; background: var(--qh-sage-soft); }.estimate span { color: var(--qh-muted); }.estimate strong { color: var(--qh-green-dark); font-size: 20px; }.estimate small { grid-column: 1 / -1; color: var(--qh-muted); }
-.toggle { display: flex; align-items: center; gap: 9px; margin-top: 18px; }.toggle input { width: 17px; height: 17px; accent-color: var(--qh-green); }
+.estimate { display: grid; grid-template-columns: 1fr auto; gap: 4px 15px; margin-top: 18px; padding: 16px; border-radius: 14px; background: var(--qh-brand-soft); }.estimate span { color: var(--qh-muted); }.estimate strong { color: var(--qh-brand); font-size: 20px; }.estimate small { grid-column: 1 / -1; color: var(--qh-muted); }
+.toggle { display: flex; align-items: center; gap: 9px; margin-top: 18px; }.toggle input { width: 17px; height: 17px; accent-color: var(--qh-brand); }
 .manual-range { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 10px; align-items: end; margin-top: 12px; }.manual-range > span, .manual-range > b { padding-bottom: 13px; color: var(--qh-muted); }
 .form-error { padding: 10px 12px; border-radius: 10px; color: #8f3f35; background: #fff0ed; font-size: 13px; }
-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; } footer button { min-height: 43px; padding: 0 17px; border-radius: 12px; font-weight: 800; cursor: pointer; }.secondary { border: 1px solid var(--qh-border); background: white; }.primary { border: 0; color: white; background: var(--qh-green); }.primary:disabled { opacity: .5; }
+footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; } footer button { min-height: 43px; padding: 0 17px; border-radius: 12px; font-weight: 800; cursor: pointer; }.secondary { border: 1px solid var(--qh-border); background: white; }.primary { border: 0; color: white; background: var(--qh-brand); }.primary:disabled { opacity: .5; }
 @media (max-width: 560px) { .modal-backdrop { align-items: end; padding: 0; }.exercise-dialog { border-radius: 22px 22px 0 0; }.form-grid { grid-template-columns: 1fr; } }
 </style>

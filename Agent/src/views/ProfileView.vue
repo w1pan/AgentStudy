@@ -65,7 +65,7 @@ function selectPreset(value: DeficitPreset) {
         <div>
           <p class="eyebrow">{{ onboarding ? '开始使用轻衡' : '个人参数' }}</p>
           <h1>{{ onboarding ? '先建立你的能量基线' : '我的档案' }}</h1>
-          <p>仅用于本机估算，不会创建账号或上传档案。</p>
+          <p>用于估算能量需求。档案保存在当前服务；使用 AI 功能时会向模型服务发送必要信息。</p>
         </div>
       </header>
 
@@ -135,8 +135,8 @@ function selectPreset(value: DeficitPreset) {
 .profile-card__header { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 34px; }
 .profile-card__header h1 { margin: 3px 0 8px; font-size: 30px; letter-spacing: -.04em; }
 .profile-card__header p { margin: 0; color: var(--qh-muted); }
-.leaf-mark { display: grid; flex: 0 0 48px; width: 48px; height: 48px; place-items: center; border-radius: 15px 5px 15px 5px; color: white; background: var(--qh-green); font-weight: 800; }
-.eyebrow { margin: 0; color: var(--qh-green-dark) !important; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.leaf-mark { display: grid; flex: 0 0 48px; width: 48px; height: 48px; place-items: center; border-radius: 15px 5px 15px 5px; color: white; background: var(--qh-brand); font-weight: 800; }
+.eyebrow { margin: 0; color: var(--qh-brand) !important; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 label { display: grid; gap: 8px; color: var(--qh-text); font-weight: 700; }
 label small, .preset-field small { color: var(--qh-muted); font-size: 12px; font-weight: 500; }
@@ -148,12 +148,12 @@ input, select { width: 100%; height: 46px; padding: 0 13px; border: 1px solid va
 .preset-field legend { margin-bottom: 10px; font-weight: 800; }
 .preset-field button { display: grid; gap: 3px; padding: 15px; border: 1px solid var(--qh-border); border-radius: 14px; text-align: left; color: var(--qh-text); background: white; cursor: pointer; }
 .preset-field button span { color: var(--qh-muted); font-size: 12px; }
-.preset-field button.active { border-color: var(--qh-green); background: var(--qh-sage-soft); box-shadow: 0 0 0 2px rgb(75 125 66 / 10%); }
+.preset-field button.active { border-color: var(--qh-brand); background: var(--qh-brand-soft); box-shadow: 0 0 0 2px rgb(75 125 66 / 10%); }
 .preset-field > small { grid-column: 1 / -1; }
 .formula-note { grid-column: 1 / -1; padding: 15px 17px; border-radius: 14px; background: var(--qh-ivory-strong); }
 .formula-note p { margin: 5px 0 0; color: var(--qh-muted); font-size: 13px; line-height: 1.6; }
 .form-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 16px; margin-top: 6px; }
-.primary-button { min-height: 46px; padding: 0 22px; border: 0; border-radius: 13px; color: white; background: var(--qh-green); font-weight: 800; cursor: pointer; }
+.primary-button { min-height: 46px; padding: 0 22px; border: 0; border-radius: 13px; color: white; background: var(--qh-brand); font-weight: 800; cursor: pointer; }
 .primary-button:disabled { opacity: .55; cursor: wait; }
 .danger-link { border: 0; color: #a24a3f; background: transparent; cursor: pointer; }
 .profile-summary { align-self: start; padding: 24px; }

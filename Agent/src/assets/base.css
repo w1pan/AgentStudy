@@ -1,24 +1,27 @@
 :root {
-  --qh-bg: #f3f6f4;
+  --qh-bg: #fffbf5;
   --qh-card: #ffffff;
-  --qh-ivory-strong: #e7ede8;
-  --qh-text: #17251d;
-  --qh-muted: #66756c;
-  --qh-border: #d6dfd8;
-  --qh-border-strong: #b7c5bb;
+  --qh-ivory-strong: #f7efdf;
+  --qh-text: #3a001d;
+  --qh-brand: #571333;
+  --qh-brand-soft: #f9d1cb;
+  --qh-muted: #6b6468;
+  --qh-border: #e8ded5;
+  --qh-border-strong: #c6adae;
   --qh-green: #2d6a4f;
   --qh-green-dark: #184c37;
   --qh-green-ink: #12382a;
   --qh-sage-soft: #dfece3;
   --qh-mint: #b9e3c7;
   --qh-orange: #e98b4a;
-  --qh-orange-dark: #b95e28;
+  --qh-orange-dark: #8a451f;
   --qh-orange-soft: #fbe5d5;
-  --qh-display: 'Songti SC', 'SimSun', STSong, 'Noto Serif CJK SC', Georgia, serif;
+  --qh-display: 'Noto Serif CJK SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+  --qh-numeral: Georgia, 'Times New Roman', 'Songti SC', serif;
   --qh-body: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --qh-data: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-  --qh-shadow-soft: 0 8px 24px rgb(18 56 42 / 5%);
-  --qh-shadow: 0 24px 70px rgb(18 56 42 / 12%);
+  --qh-shadow-soft: 0 5px 20px rgb(58 0 29 / 3%);
+  --qh-shadow: 0 24px 70px rgb(58 0 29 / 12%);
   color-scheme: light;
   font-family: var(--qh-body);
   font-synthesis: none;
@@ -112,3 +115,22 @@ a:focus-visible {
 }
 
 summary:focus-visible { outline: 3px solid var(--qh-orange); outline-offset: 3px; }
+
+button:disabled { cursor: not-allowed; opacity: .55; }
+[role='dialog'] { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter-active, .page-leave-active { transition: opacity 180ms ease; }
+  .page-enter-from, .page-leave-to { opacity: 0; }
+  .dialog-enter-active, .dialog-leave-active { transition: opacity 200ms ease; }
+  .dialog-enter-active > *, .dialog-leave-active > * { transition: transform 250ms ease; }
+  .dialog-enter-from, .dialog-leave-to { opacity: 0; }
+  .dialog-enter-from > *, .dialog-leave-to > * { transform: translateY(12px); }
+  .dialog-enter-from > .drawer, .dialog-leave-to > .drawer { transform: translateX(24px); }
+  .meal-enter-active { animation: meal-added 350ms ease; }
+  .meal-move { transition: transform 250ms ease; }
+  @keyframes meal-added { from { opacity: 0; transform: translateY(8px); background: var(--qh-brand-soft); } to { opacity: 1; transform: translateY(0); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

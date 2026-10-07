@@ -8,7 +8,7 @@ describe('RangeMetric', () => {
     const wrapper = mount(RangeMetric, {
       props: { label: '今日摄入', value: { low: 1380, high: 1520 } },
     })
-    expect(wrapper.text()).toContain('1380–1520')
-    expect(wrapper.text()).not.toContain('1450 kcal')
+    expect(wrapper.text()).toContain('1,380–1,520')
+    expect(wrapper.text()).not.toContain('1,450 kcal')
   })
 })

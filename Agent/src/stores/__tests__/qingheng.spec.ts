@@ -44,10 +44,11 @@ describe('qingheng store initialization', () => {
     })
     vi.spyOn(api, 'getProfile').mockRejectedValue(new Error('档案刷新失败'))
 
-    await expect(store.saveWeight(59)).rejects.toThrow('档案刷新失败')
+    await expect(store.saveWeight(59)).resolves.toBeUndefined()
 
     expect(store.profile.current_weight_kg).toBe(59)
-    expect(store.error).toBe('档案刷新失败')
+    expect(store.error).toContain('更改已保存')
+    expect(store.today).toBeNull()
     expect(store.busy).toBe(false)
   })
 

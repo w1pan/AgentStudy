@@ -38,6 +38,35 @@ describe('advice cache after clearing history', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
+  it('does not restore an obsolete summary from a read started before a write', async () => {
+    const store = useQinghengStore()
+    let resolveOld!: (value: DayDetail) => void
+    vi.mocked(api.getToday)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve }))
+      .mockResolvedValueOnce(day(2))
+    const pending = store.refreshToday()
+    const save = vi.fn().mockResolvedValue(undefined)
+    await store.mutate(save)
+    resolveOld(day(1))
+    await pending
+    expect(save).toHaveBeenCalledOnce()
+    expect(store.today?.summary.data_version).toBe(2)
+  })
+
+  it('allows retrying a failed refresh without submitting the write again', async () => {
+    const store = useQinghengStore()
+    const save = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(api.getToday).mockRejectedValueOnce(new Error('断网'))
+      .mockResolvedValueOnce(day(2))
+    await store.mutate(save)
+    expect(store.today).toBeNull()
+    expect(store.error).toContain('无需重复提交')
+    await store.reloadToday()
+    expect(save).toHaveBeenCalledOnce()
+    expect(store.today?.summary.data_version).toBe(2)
+    expect(store.error).toBe('')
+  })
+
   it('discards all previous versions when the same date and versions are reused', async () => {
     const store = useQinghengStore()
     const request = vi.spyOn(api, 'generateAdvice')
@@ -64,11 +93,11 @@ describe('advice cache after clearing history', () => {
     await store.generateAdvice()
     vi.mocked(api.getToday).mockRejectedValueOnce(new Error('刷新失败'))
 
-    await expect(store.clearHistory()).rejects.toThrow('刷新失败')
+    await expect(store.clearHistory()).resolves.toBeUndefined()
 
     expect(store.today).toBeNull()
     expect(store.busy).toBe(false)
-    expect(store.error).toBe('刷新失败')
+    expect(store.error).toContain('更改已保存')
     await store.refreshToday()
     expect(store.cachedAdvice).toBeNull()
   })

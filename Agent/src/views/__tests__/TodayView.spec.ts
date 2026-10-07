@@ -68,7 +68,7 @@ it('keeps the saved weight when editing the profile after saving today weight', 
   let profileView: ReturnType<typeof shallowMount> | undefined
   try {
     await today.get('.weight-input input').setValue(59)
-    await today.findAll('button').find((b) => b.text() === '保存今日体重')!.trigger('click')
+    await today.get('button[aria-label="保存今日体重"]').trigger('click')
     await flushPromises()
     expect(writeWeight).toHaveBeenCalledWith(59)
     expect(store.profile).toEqual(updated)

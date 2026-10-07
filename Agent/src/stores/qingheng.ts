@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { ApiError } from '@/api/client'
+import { currentRecordDate } from '@/utils/energy'
 import { api, type AdviceResponse, type DayDetail, type Profile, type ProfilePayload } from '@/api/qingheng'
 
 export const useQinghengStore = defineStore('qingheng', () => {
@@ -12,6 +13,7 @@ export const useQinghengStore = defineStore('qingheng', () => {
   const error = ref('')
   const adviceCache = ref<Record<string, AdviceResponse>>({})
   let adviceGeneration = 0
+  let todayRequest = 0
 
   const hasProfile = computed(() => profile.value !== null)
   const adviceKey = computed(() => {
@@ -56,29 +58,49 @@ export const useQinghengStore = defineStore('qingheng', () => {
 
   async function refreshToday() {
     if (!profile.value) return
-    today.value = await api.getToday()
+    const request = ++todayRequest
+    try {
+      const result = await api.getToday()
+      if (request === todayRequest) today.value = result
+    } catch (value) {
+      if (request !== todayRequest) return
+      today.value = null
+      throw value
+    }
   }
 
-  async function saveProfile(payload: ProfilePayload) {
+  async function reloadToday() {
+    if (busy.value || !profile.value) return
     busy.value = true
     error.value = ''
+    if (today.value?.summary.record_date !== currentRecordDate()) today.value = null
     try {
-      profile.value = await api.saveProfile(payload)
       await refreshToday()
     } catch (value) {
       setError(value)
-      throw value
     } finally {
       busy.value = false
     }
   }
 
-  async function mutate(action: () => Promise<unknown>) {
+  async function saveProfile(payload: ProfilePayload) {
+    await mutate(async () => { profile.value = await api.saveProfile(payload) })
+  }
+
+  async function mutate(action: () => Promise<unknown>, afterSave?: () => Promise<void>) {
     busy.value = true
     error.value = ''
+    // Prevent a read started before this write from restoring an obsolete summary.
+    todayRequest += 1
     try {
       await action()
-      await refreshToday()
+      today.value = null
+      try {
+        await afterSave?.()
+        await refreshToday()
+      } catch {
+        error.value = '更改已保存，但最新数据加载失败。请刷新今日数据，无需重复提交。'
+      }
     } catch (value) {
       setError(value)
       throw value
@@ -122,8 +144,7 @@ export const useQinghengStore = defineStore('qingheng', () => {
       if (profile.value) {
         profile.value = { ...profile.value, current_weight_kg: saved.weight_kg }
       }
-      profile.value = await api.getProfile()
-    })
+    }, async () => { profile.value = await api.getProfile() })
   }
 
   function clearError() {
@@ -140,6 +161,7 @@ export const useQinghengStore = defineStore('qingheng', () => {
     cachedAdvice,
     initialize,
     refreshToday,
+    reloadToday,
     saveProfile,
     saveWeight,
     clearHistory,

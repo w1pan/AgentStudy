@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vDialog } from '@/utils/dialog'
 import { ref } from 'vue'
 
 import { api, type MealType } from '@/api/qingheng'
@@ -10,18 +11,20 @@ const mealType = ref<MealType>('lunch')
 const customMealName = ref('')
 const file = ref<File | null>(null)
 const localError = ref('')
+const submitting = ref(false)
 
 function selectFile(event: Event) {
   file.value = (event.target as HTMLInputElement).files?.[0] || null
 }
 
 async function submit() {
-  if (!file.value) return
+  if (!file.value || submitting.value) return
   if (mealType.value === 'custom' && !customMealName.value.trim()) {
     localError.value = '请填写自定义餐次名称'
     return
   }
   localError.value = ''
+  submitting.value = true
   try {
     await store.mutate(() =>
       api.createPhotoMeal(
@@ -33,13 +36,15 @@ async function submit() {
     emit('close')
   } catch (error) {
     localError.value = error instanceof Error ? error.message : '识别失败'
+  } finally {
+    submitting.value = false
   }
 }
 </script>
 
 <template>
-  <div class="modal-backdrop" @mousedown.self="emit('close')">
-    <section class="photo-dialog" role="dialog" aria-modal="true">
+  <div v-dialog="() => emit('close')" class="modal-backdrop" @mousedown.self="emit('close')">
+    <section class="photo-dialog" role="dialog" aria-modal="true" aria-label="拍照记录饮食">
       <header>
         <div>
           <p>拍照估算</p>
@@ -48,8 +53,8 @@ async function submit() {
         </div>
         <button aria-label="关闭" @click="emit('close')">×</button>
       </header>
-      <label class="drop-zone">
-        <input type="file" accept="image/jpeg,image/png,image/webp" @change="selectFile" />
+      <label class="drop-zone" :class="{ 'is-processing': submitting }" :aria-busy="submitting">
+        <input type="file" :disabled="submitting" accept="image/jpeg,image/png,image/webp" @change="selectFile" />
         <span class="camera"><i /></span>
         <strong>{{ file ? file.name : '打开相机或选择照片' }}</strong>
         <small>{{
@@ -57,6 +62,7 @@ async function submit() {
         }}</small>
         <b>{{ file ? '重新选择' : '选择照片' }}</b>
       </label>
+      <p v-if="submitting" role="status" class="processing-note">正在识别食物并计算区间，请稍候…</p>
       <p class="field-label"><span>接下来</span> 这是哪一餐？</p>
       <div class="meal-types">
         <button
@@ -82,13 +88,13 @@ async function submit() {
       />
       <div class="privacy-note">
         <strong><i /> 原图不会保存</strong>
-        <p>服务端会在内存中完成验证与识别，之后只保留结构化的餐食记录。</p>
+        <p>照片会发送至模型服务进行识别；本服务不保存原图，仅保留结构化餐食记录。</p>
       </div>
       <p v-if="localError" class="form-error">{{ localError }}</p>
       <footer>
         <button class="secondary" @click="emit('close')">取消</button
         ><button class="primary" :disabled="!file || store.busy" @click="submit">
-          {{ store.busy ? '正在识别…' : '识别并自动入账' }}
+          {{ submitting ? '正在识别…' : '识别并自动入账' }}
         </button>
       </footer>
     </section>
@@ -125,7 +131,7 @@ h2 {
   margin: 0;
 }
 header p {
-  color: var(--qh-green-dark);
+  color: var(--qh-brand);
   font-family: var(--qh-data);
   font-size: 10px;
   font-weight: 800;
@@ -147,7 +153,7 @@ header button {
   border: 0;
   border-radius: 12px;
   color: var(--qh-muted);
-  background: var(--qh-sage-soft);
+  background: var(--qh-brand-soft);
   font-size: 25px;
   cursor: pointer;
 }
@@ -177,9 +183,9 @@ header button {
   cursor: pointer;
 }
 .meal-types button.active {
-  border-color: var(--qh-green);
-  color: var(--qh-green-dark);
-  background: var(--qh-sage-soft);
+  border-color: var(--qh-brand);
+  color: var(--qh-brand);
+  background: var(--qh-brand-soft);
   font-weight: 800;
   box-shadow: inset 0 0 0 1px rgb(45 106 79 / 8%);
 }
@@ -192,6 +198,7 @@ header button {
   border-radius: 11px;
 }
 .drop-zone {
+  overflow: hidden;
   display: grid;
   position: relative;
   place-items: center;
@@ -200,13 +207,19 @@ header button {
   padding: 30px 20px 24px;
   border: 1.5px dashed #89aa94;
   border-radius: 22px 7px 22px 7px;
-  background: linear-gradient(145deg, #e8f1ea, #f4f8f4);
+  background: var(--qh-bg);
   text-align: center;
   cursor: pointer;
 }
+.drop-zone:focus-within { outline: 3px solid var(--qh-orange); outline-offset: 3px; }
+.processing-note { color: var(--qh-brand); font-size: 13px; line-height: 1.6; }
+@media (prefers-reduced-motion: no-preference) {
+  .is-processing::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent, #f9d1cb88, transparent); animation: scan 1600ms ease-in-out infinite; }
+  @keyframes scan { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+}
 .drop-zone:hover {
-  border-color: var(--qh-green);
-  background: #edf5ee;
+  border-color: var(--qh-brand);
+  background: var(--qh-ivory-strong);
 }
 .drop-zone input {
   position: absolute;
@@ -222,7 +235,7 @@ header button {
   padding: 8px 14px;
   border-radius: 11px 4px 11px 4px;
   color: white;
-  background: var(--qh-green-ink);
+  background: var(--qh-brand);
   font-size: 11px;
 }
 .camera {
@@ -239,7 +252,7 @@ header button {
 .camera::before {
   width: 27px;
   height: 20px;
-  border: 2px solid var(--qh-green);
+  border: 2px solid var(--qh-brand);
   border-radius: 5px;
   content: '';
 }
@@ -248,7 +261,7 @@ header button {
   top: 15px;
   width: 12px;
   height: 5px;
-  border: 2px solid var(--qh-green);
+  border: 2px solid var(--qh-brand);
   border-bottom: 0;
   border-radius: 3px 3px 0 0;
   content: '';
@@ -257,7 +270,7 @@ header button {
   position: absolute;
   width: 10px;
   height: 10px;
-  border: 2px solid var(--qh-green);
+  border: 2px solid var(--qh-brand);
   border-radius: 50%;
 }
 .privacy-note {
@@ -276,7 +289,7 @@ header button {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--qh-green);
+  background: var(--qh-brand);
 }
 .privacy-note p {
   margin: 5px 0 0;
@@ -311,7 +324,7 @@ footer button {
 .primary {
   border: 0;
   color: white;
-  background: var(--qh-green-ink);
+  background: var(--qh-brand);
 }
 .primary:disabled {
   opacity: 0.5;
