@@ -28,7 +28,7 @@ Agents/
 ├─ Agent/                 # Vue 前端及组件测试
 ├─ agent-learning/        # FastAPI、AI 调用、数据库迁移及后端测试
 ├─ deploy/ecs/            # ECS 打包脚本、Dockerfile、Compose 与 Nginx 配置
-├─ docs/                  # 实现逻辑与部署进度
+├─ docs/                  # 本地实现逻辑与部署进度（不提交）
 ├─ .runtime/              # 本地 PostgreSQL、数据与运行日志（不提交）
 ├─ start-qingheng.ps1     # 本地一键启动
 ├─ stop-qingheng.ps1      # 本地停止服务
@@ -172,7 +172,7 @@ cd ..
 
 ## 进一步阅读
 
-- [项目实现逻辑](docs/项目实现逻辑.md)：架构、照片估算、受限 Agent、缓存与数据流程。
 - [后端说明](agent-learning/README.md)：数据库初始化、图片校验、营养检索与建议生成。
 - [ECS 部署指南](deploy/ecs/README.md)：容器部署、SSH 隧道、备份与常见问题。
-- [部署进度记录](docs/部署进度-2026-09-20.md)：历史部署过程与待完成事项，以实际环境验收结果为准。
+
+`docs/` 中的实现逻辑、部署进度和设计文档仅保留在本地，不随 Git 仓库分发。
