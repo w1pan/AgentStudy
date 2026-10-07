@@ -1,6 +1,7 @@
 # IDE and local tools
 /.claude/
 /.idea/
+**/.idea/
 /.vscode/
 
 # Root virtual environment
@@ -8,6 +9,10 @@
 
 # Local database runtime and data
 /.runtime/
+
+# Local artifacts and temporary files
+/output/
+/tmp/
 
 # Environment secrets at any depth
 **/.env
