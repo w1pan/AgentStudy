@@ -233,8 +233,10 @@ export async function streamAdviceFollowUp(
   message: string,
   history: FollowUpMessage[],
   onText: (text: string) => void,
+  signal?: AbortSignal,
 ) {
   const response = await fetch('/api/v1/advice/follow-up', {
+    signal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ card_type: cardType, message, history }),
@@ -247,6 +249,7 @@ export async function streamAdviceFollowUp(
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let completed = false
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
@@ -255,10 +258,12 @@ export async function streamAdviceFollowUp(
     buffer = events.pop() || ''
     for (const event of events) {
       if (event.startsWith('event: error')) throw new Error('追问暂时不可用，请稍后重试')
+      if (event.startsWith('event: done')) { completed = true; continue }
       const dataLine = event.split('\n').find((line) => line.startsWith('data: '))
       if (!dataLine || event.startsWith('event: done')) continue
       const payload = JSON.parse(dataLine.slice(6))
       if (payload.text) onText(payload.text)
     }
   }
+  if (!completed) throw new Error('回答中断，请重新生成。')
 }

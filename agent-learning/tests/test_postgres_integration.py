@@ -93,7 +93,8 @@ class PostgresIntegrationTests(unittest.TestCase):
                         "source_version": "test",
                     }],
                 )
-                self.assertEqual((meal.kcal.low, meal.kcal.high), (235, 365))
+                # sqrt(60**2 + (300 * 0.04)**2) rounds to 61 kcal.
+                self.assertEqual((meal.kcal.low, meal.kcal.high), (239, 361))
                 self.assertEqual(meal.estimate_confidence, "medium")
                 self.assertEqual(meal.items[0].estimate_confidence, "medium")
         finally:

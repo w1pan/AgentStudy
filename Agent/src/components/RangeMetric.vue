@@ -34,8 +34,8 @@ defineProps<{
   min-width: 0;
   overflow: hidden;
   padding: 19px 20px 17px;
-  border: 1px solid var(--qh-border);
-  border-radius: 16px;
+  border: var(--qh-stroke) solid var(--qh-border-strong);
+  border-radius: var(--qh-radius-card);
   background: var(--qh-card);
   box-shadow: var(--qh-shadow-soft);
 }
@@ -61,7 +61,7 @@ defineProps<{
 .metric-info { margin: 0 auto 0 0; }
 .metric-info summary { cursor: pointer; list-style: none; font-size: 16px; }
 .metric-info summary::-webkit-details-marker { display: none; }
-.metric-info p { position: absolute; left: 0; top: 22px; z-index: 3; max-width: 100%; margin: 4px 0 0; padding: 12px; background: #fffcf8; color: var(--qh-text); border: 1px solid var(--qh-border); border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: var(--qh-shadow-soft); }
+.metric-info p { position: absolute; left: 0; top: 22px; z-index: 3; max-width: 100%; margin: 4px 0 0; padding: 12px; background: var(--qh-card); color: var(--qh-text); border: var(--qh-stroke) solid var(--qh-border-strong); border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: var(--qh-shadow-soft); }
 .metric__head span {
   color: var(--qh-text);
   display: flex;
@@ -108,7 +108,7 @@ defineProps<{
   font-size: 12px;
   letter-spacing: 0.1em;
 }
-.metric__status { font-size: 12px; padding: 5px 10px; border-radius: 999px; color: var(--qh-green-dark); background: #ffffffb3; }
+.metric__status { font-size: 12px; padding: 5px 10px; border-radius: var(--qh-radius-pill); color: var(--qh-green-dark); background: var(--qh-card); }
 .metric--orange .metric__status { color: var(--qh-orange-dark); }
 .metric { transition: background-color 350ms ease, border-color 350ms ease; }
 .metric--orange strong {
@@ -121,7 +121,7 @@ defineProps<{
   color: var(--qh-text);
 }
 .metric--neutral::after {
-  background: #819087;
+  background: var(--qh-blue);
 }
 .metric__head .ui-icon {
   width: 18px;

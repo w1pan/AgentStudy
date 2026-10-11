@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Iterator
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -63,6 +64,18 @@ def _number(value: Decimal | float | int) -> float:
     return float(value)
 
 
+@contextmanager
+def _write_connection() -> Iterator[Connection]:
+    with connection() as conn:
+        # Lock before any reads or writes, including profile creation and history
+        # deletion. The transaction-scoped lock also coordinates separate workers.
+        conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"qingheng:user:{LOCAL_USER_ID}",),
+        )
+        yield conn
+
+
 def _require_profile(conn: Connection) -> dict[str, Any]:
     row = conn.execute(
         "SELECT * FROM profiles WHERE user_id = %s",
@@ -98,7 +111,7 @@ def get_profile() -> ProfileResponse:
 
 def upsert_profile(payload: ProfileUpsert) -> ProfileResponse:
     current_day = today()
-    with connection() as conn:
+    with _write_connection() as conn:
         row = conn.execute(
             """
             INSERT INTO profiles (
@@ -358,7 +371,9 @@ def _load_weight(conn: Connection, record_date: date) -> WeightResponse | None:
 def get_day_detail(record_date: date) -> DayDetail:
     if record_date > today():
         raise HTTPException(status_code=400, detail="不能查看未来日期")
-    with connection() as conn:
+    # This read may initialize today's summary. Use the same lock as writers so
+    # its summary and component queries describe one committed state.
+    with _write_connection() as conn:
         _require_profile(conn)
         summary_row = conn.execute(
             "SELECT * FROM daily_summaries WHERE user_id = %s AND record_date = %s",
@@ -569,7 +584,7 @@ def _insert_meal_items(conn: Connection, meal_id: UUID, items: list[dict[str, An
 def create_manual_meal(payload: ManualMealWrite) -> MealResponse:
     current_day = today()
     meal_id = uuid4()
-    with connection() as conn:
+    with _write_connection() as conn:
         _require_profile(conn)
         items = [_resolve_manual_item(conn, item) for item in payload.items]
         kcal_low = sum(item["kcal_low"] for item in items)
@@ -599,7 +614,7 @@ def create_photo_meal(
 ) -> MealResponse:
     current_day = today()
     meal_id = uuid4()
-    with connection() as conn:
+    with _write_connection() as conn:
         _require_profile(conn)
         # Aggregate from server-owned item centers/errors before persistence;
         # the client and the Agent never submit the final meal interval.
@@ -624,7 +639,7 @@ def create_photo_meal(
 
 def update_manual_meal(meal_id: UUID, payload: ManualMealWrite) -> MealResponse:
     current_day = today()
-    with connection() as conn:
+    with _write_connection() as conn:
         meal = conn.execute(
             "SELECT * FROM meal_records WHERE id = %s AND user_id = %s",
             (meal_id, LOCAL_USER_ID),
@@ -657,7 +672,7 @@ def update_manual_meal(meal_id: UUID, payload: ManualMealWrite) -> MealResponse:
 
 def delete_meal(meal_id: UUID) -> None:
     current_day = today()
-    with connection() as conn:
+    with _write_connection() as conn:
         row = conn.execute(
             "SELECT record_date FROM meal_records WHERE id = %s AND user_id = %s",
             (meal_id, LOCAL_USER_ID),
@@ -672,7 +687,7 @@ def delete_meal(meal_id: UUID) -> None:
 
 def upsert_weight(weight_kg: float) -> WeightResponse:
     current_day = today()
-    with connection() as conn:
+    with _write_connection() as conn:
         _require_profile(conn)
         conn.execute(
             "UPDATE profiles SET current_weight_kg = %s, updated_at = NOW() WHERE user_id = %s",
@@ -712,7 +727,7 @@ def _resolve_exercise(conn: Connection, payload: ExerciseWrite) -> tuple[dict[st
 def create_exercise(payload: ExerciseWrite) -> ExerciseResponse:
     current_day = today()
     exercise_id = uuid4()
-    with connection() as conn:
+    with _write_connection() as conn:
         activity, kcal, source = _resolve_exercise(conn, payload)
         conn.execute(
             """
@@ -733,7 +748,7 @@ def create_exercise(payload: ExerciseWrite) -> ExerciseResponse:
 
 def update_exercise(exercise_id: UUID, payload: ExerciseWrite) -> ExerciseResponse:
     current_day = today()
-    with connection() as conn:
+    with _write_connection() as conn:
         existing = conn.execute(
             "SELECT record_date FROM exercise_records WHERE id = %s AND user_id = %s",
             (exercise_id, LOCAL_USER_ID),
@@ -762,7 +777,7 @@ def update_exercise(exercise_id: UUID, payload: ExerciseWrite) -> ExerciseRespon
 
 def delete_exercise(exercise_id: UUID) -> None:
     current_day = today()
-    with connection() as conn:
+    with _write_connection() as conn:
         row = conn.execute(
             "SELECT record_date FROM exercise_records WHERE id = %s AND user_id = %s",
             (exercise_id, LOCAL_USER_ID),
@@ -776,7 +791,7 @@ def delete_exercise(exercise_id: UUID) -> None:
 
 
 def clear_history() -> None:
-    with connection() as conn:
+    with _write_connection() as conn:
         _require_profile(conn)
         conn.execute("DELETE FROM meal_records WHERE user_id = %s", (LOCAL_USER_ID,))
         conn.execute("DELETE FROM exercise_records WHERE user_id = %s", (LOCAL_USER_ID,))

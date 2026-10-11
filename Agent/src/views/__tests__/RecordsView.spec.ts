@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api, type DayDetail } from '@/api/qingheng'
 import RecordsView from '../RecordsView.vue'
+import MonthPicker from '@/components/MonthPicker.vue'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -33,6 +34,31 @@ async function loadedView() {
 
 describe('history request ordering', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it('does not present an unrecorded diet as a calorie deficit', async () => {
+    const { wrapper } = await loadedView()
+    try {
+      expect(wrapper.get('.balance-metric').text()).toContain('记录饮食后可估算')
+      expect(wrapper.get('.balance-metric').text()).not.toContain('1,560')
+      expect(wrapper.get('.summary-metrics').text()).toContain('当天未记录饮食')
+      expect(wrapper.get('.summary-metrics').text()).toContain('1,560')
+    } finally { wrapper.unmount() }
+  })
+
+  it('navigates months and stops at the current month', async () => {
+    const { wrapper } = await loadedView()
+    try {
+      const picker = wrapper.getComponent(MonthPicker)
+      const currentMonth = picker.props('modelValue')
+      await wrapper.get('[aria-label="上个月"]').trigger('click')
+      await flushPromises()
+      expect(picker.props('modelValue')).not.toBe(currentMonth)
+      await wrapper.get('[aria-label="下个月"]').trigger('click')
+      await flushPromises()
+      expect(picker.props('modelValue')).toBe(currentMonth)
+      expect(wrapper.get('[aria-label="下个月"]').attributes('disabled')).toBeDefined()
+    } finally { wrapper.unmount() }
+  })
 
   it('keeps the newest date detail when the earlier date finishes last', async () => {
     const { wrapper, request } = await loadedView()
@@ -81,10 +107,11 @@ describe('history request ordering', () => {
       .mockResolvedValueOnce({ month: '2026-07', dates: ['2026-07-01'] })
     request.mockResolvedValue(day('2026-07-01', 58))
     try {
-      await wrapper.get('input[type="month"]').setValue('2026-08')
+      wrapper.getComponent(MonthPicker).vm.$emit('update:modelValue', '2026-08')
+      await wrapper.vm.$nextTick()
       expect(wrapper.findAll('.date-list button')).toHaveLength(0)
       expect(wrapper.find('.day-detail').exists()).toBe(false)
-      await wrapper.get('input[type="month"]').setValue('2026-07')
+      wrapper.getComponent(MonthPicker).vm.$emit('update:modelValue', '2026-07')
       await flushPromises()
       older.resolve({ month: '2026-08', dates: ['2026-08-01'] })
       await flushPromises()
@@ -118,7 +145,7 @@ describe('history request ordering', () => {
     vi.mocked(api.getHistoryMonth).mockResolvedValueOnce({ month: '2026-06', dates: [] })
     try {
       await wrapper.findAll('.date-list button')[0]!.trigger('click')
-      await wrapper.get('input[type="month"]').setValue('2026-06')
+      wrapper.getComponent(MonthPicker).vm.$emit('update:modelValue', '2026-06')
       await flushPromises()
       pending.resolve(day('2026-09-01', 80))
       await flushPromises()

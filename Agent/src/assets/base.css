@@ -1,27 +1,67 @@
 :root {
-  --qh-bg: #fffbf5;
-  --qh-card: #ffffff;
-  --qh-ivory-strong: #f7efdf;
-  --qh-text: #3a001d;
-  --qh-brand: #571333;
-  --qh-brand-soft: #f9d1cb;
-  --qh-muted: #6b6468;
-  --qh-border: #e8ded5;
-  --qh-border-strong: #c6adae;
-  --qh-green: #2d6a4f;
-  --qh-green-dark: #184c37;
-  --qh-green-ink: #12382a;
-  --qh-sage-soft: #dfece3;
-  --qh-mint: #b9e3c7;
-  --qh-orange: #e98b4a;
-  --qh-orange-dark: #8a451f;
-  --qh-orange-soft: #fbe5d5;
-  --qh-display: 'Noto Serif CJK SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
-  --qh-numeral: Georgia, 'Times New Roman', 'Songti SC', serif;
-  --qh-body: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  --qh-data: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-  --qh-shadow-soft: 0 5px 20px rgb(58 0 29 / 3%);
-  --qh-shadow: 0 24px 70px rgb(58 0 29 / 12%);
+  /* Reference palette: keep these eight source colors exact. */
+  --qh-red: #ea3d5b;
+  --qh-berry: #9a1436;
+  --qh-cream: #fffaf0;
+  --qh-oat: #f7efdf;
+  --qh-pink: #f296b9;
+  --qh-blue: #a6e0f5;
+  --qh-mint: #b4e7c3;
+  --qh-yellow: #fdcb67;
+
+  /* Semantic roles. Berry buttons keep small cream labels legible. */
+  --qh-bg: var(--qh-cream);
+  --qh-card: var(--qh-cream);
+  --qh-surface-subtle: var(--qh-oat);
+  --qh-ivory-strong: var(--qh-oat);
+  --qh-text: var(--qh-berry);
+  --qh-brand: var(--qh-berry);
+  --qh-brand-hover: color-mix(in srgb, var(--qh-berry) 85%, black);
+  --qh-accent: var(--qh-red);
+  --qh-brand-soft: color-mix(in srgb, var(--qh-pink) 25%, var(--qh-cream));
+  --qh-on-brand: var(--qh-cream);
+  /* Quieter plum-gray copy, derived from the palette rather than bright red. */
+  --qh-muted: color-mix(in srgb, var(--qh-berry) 25%, color-mix(in srgb, var(--qh-oat) 40%, black));
+  --qh-border: color-mix(in srgb, var(--qh-berry) 22%, var(--qh-cream));
+  --qh-border-strong: var(--qh-berry);
+  --qh-focus: var(--qh-berry);
+  --qh-danger: var(--qh-berry);
+  --qh-danger-soft: color-mix(in srgb, var(--qh-pink) 30%, var(--qh-cream));
+  --qh-green: color-mix(in srgb, var(--qh-mint) 34%, black);
+  --qh-green-dark: var(--qh-green);
+  --qh-green-ink: var(--qh-green);
+  --qh-sage-soft: var(--qh-mint);
+  --qh-orange: var(--qh-yellow);
+  --qh-orange-dark: var(--qh-berry);
+  --qh-orange-soft: color-mix(in srgb, var(--qh-yellow) 35%, var(--qh-cream));
+  /* Neutral dimming keeps dialogs focused without tinting the page pink. */
+  --qh-overlay: rgb(48 45 41 / 22%);
+
+  --qh-body: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --qh-display: 'Arial Rounded MT Bold', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --qh-numeral: ui-rounded, 'Arial Rounded MT Bold', var(--qh-body);
+  --qh-data: var(--qh-body);
+  --qh-text-caption: 0.75rem;
+  --qh-text-small: 0.875rem;
+  --qh-text-body: 1rem;
+  --qh-text-title: 1.5rem;
+  --qh-leading: 1.65;
+
+  --qh-radius-sm: 10px;
+  --qh-radius-control: 14px;
+  --qh-radius-card: 22px;
+  --qh-radius-pill: 999px;
+  --qh-stroke: 1.5px;
+  --qh-space-1: 4px;
+  --qh-space-2: 8px;
+  --qh-space-3: 12px;
+  --qh-space-4: 16px;
+  --qh-space-6: 24px;
+  --qh-space-8: 32px;
+  --qh-shadow-soft: none;
+  --qh-shadow: 0 8px 0 color-mix(in srgb, var(--qh-berry) 10%, transparent);
+  --qh-shadow-raised: 0 3px 0 var(--qh-berry);
+  --qh-duration: 200ms;
   color-scheme: light;
   font-family: var(--qh-body);
   font-synthesis: none;
@@ -46,6 +86,8 @@ body {
 body {
   min-width: 320px;
   color: var(--qh-text);
+  font-size: var(--qh-text-body);
+  line-height: var(--qh-leading);
 }
 button,
 textarea,
@@ -55,12 +97,26 @@ select {
 }
 button {
   color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+input,
+textarea,
+select {
+  accent-color: var(--qh-brand);
+  color: var(--qh-text);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--qh-muted);
+  opacity: 1;
 }
 h1,
 h2,
 h3 {
   font-family: var(--qh-display);
   font-weight: 700;
+  line-height: 1.3;
 }
 strong,
 b,
@@ -71,16 +127,17 @@ button:focus-visible,
 textarea:focus-visible,
 input:focus-visible,
 select:focus-visible,
-a:focus-visible {
-  outline: 3px solid var(--qh-orange);
+a:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--qh-focus);
   outline-offset: 3px;
 }
 ::selection {
-  color: white;
-  background: rgb(45 106 79 / 78%);
+  color: var(--qh-brand-hover);
+  background: var(--qh-pink);
 }
 * {
-  scrollbar-color: #9db2a4 transparent;
+  scrollbar-color: var(--qh-pink) transparent;
   scrollbar-width: thin;
 }
 *::-webkit-scrollbar {
@@ -90,7 +147,7 @@ a:focus-visible {
 *::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: #9db2a4;
+  background: var(--qh-pink);
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-track {
@@ -103,18 +160,16 @@ a:focus-visible {
   select,
   summary {
     transition:
-      border-color 160ms ease,
-      background-color 160ms ease,
-      color 160ms ease,
-      transform 160ms ease,
-      box-shadow 160ms ease;
+      border-color var(--qh-duration) ease,
+      background-color var(--qh-duration) ease,
+      color var(--qh-duration) ease,
+      transform var(--qh-duration) ease,
+      box-shadow var(--qh-duration) ease;
   }
   button:not(:disabled):active {
     transform: translateY(1px);
   }
 }
-
-summary:focus-visible { outline: 3px solid var(--qh-orange); outline-offset: 3px; }
 
 button:disabled { cursor: not-allowed; opacity: .55; }
 [role='dialog'] { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }

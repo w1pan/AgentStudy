@@ -9,8 +9,15 @@ export const useQinghengStore = defineStore('qingheng', () => {
   const profile = ref<Profile | null>(null)
   const today = ref<DayDetail | null>(null)
   const initialized = ref(false)
+  const initializationFailed = ref(false)
   const busy = ref(false)
   const error = ref('')
+  const notice = ref<{ text: string; id: number } | null>(null)
+  let noticeId = 0
+  function notifySuccess(text: string) {
+    if (!error.value) notice.value = { text, id: ++noticeId }
+  }
+  function clearNotice() { notice.value = null }
   const adviceCache = ref<Record<string, AdviceResponse>>({})
   let adviceGeneration = 0
   let todayRequest = 0
@@ -23,10 +30,13 @@ export const useQinghengStore = defineStore('qingheng', () => {
   const cachedAdvice = computed(() => adviceCache.value[adviceKey.value] || null)
 
   function setError(value: unknown) {
+    clearNotice()
     error.value = value instanceof Error ? value.message : '操作失败'
   }
 
   async function initialize() {
+    initialized.value = false
+    initializationFailed.value = false
     busy.value = true
     error.value = ''
     try {
@@ -48,6 +58,7 @@ export const useQinghengStore = defineStore('qingheng', () => {
         setError(value)
       }
     } catch (value) {
+      initializationFailed.value = true
       setError(value)
       today.value = null
     } finally {
@@ -88,6 +99,7 @@ export const useQinghengStore = defineStore('qingheng', () => {
   }
 
   async function mutate(action: () => Promise<unknown>, afterSave?: () => Promise<void>) {
+    clearNotice()
     busy.value = true
     error.value = ''
     // Prevent a read started before this write from restoring an obsolete summary.
@@ -155,8 +167,12 @@ export const useQinghengStore = defineStore('qingheng', () => {
     profile,
     today,
     initialized,
+    initializationFailed,
     busy,
     error,
+    notice,
+    notifySuccess,
+    clearNotice,
     hasProfile,
     cachedAdvice,
     initialize,

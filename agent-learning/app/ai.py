@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
@@ -344,8 +345,8 @@ def photo_items(image_bytes: bytes) -> list[dict[str, Any]]:
 
 
 _ADVICE_CACHE_LIMIT = 32
-_advice_cache: dict[tuple[str, int, str], AdviceResponse] = {}
-_advice_inflight: dict[tuple[str, int, str], Future[AdviceResponse]] = {}
+_advice_cache: dict[tuple[str, int, str, str], AdviceResponse] = {}
+_advice_inflight: dict[tuple[str, int, str, str], Future[AdviceResponse]] = {}
 _advice_cache_lock = threading.Lock()
 
 
@@ -403,11 +404,16 @@ def _generate_advice_uncached(
 
 def generate_advice(facts: dict[str, Any]) -> AdviceResponse:
     model = os.getenv("ADVICE_MODEL", os.getenv("CHAT_MODEL", "qwen3.7-plus"))
-    key = (str(facts["date"]), int(facts["data_version"]), model)
+    # History deletion can reuse a date/version. Include the actual facts in
+    # both cache and in-flight keys so old requests cannot supply new advice.
+    fingerprint = hashlib.sha256(json.dumps(
+        facts, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    key = (str(facts["date"]), int(facts["data_version"]), model, fingerprint)
     with _advice_cache_lock:
         cached = _advice_cache.get(key)
         if cached is not None:
-            logger.info("今日建议命中缓存 date=%s data_version=%s model=%s", *key)
+            logger.info("今日建议命中缓存 date=%s data_version=%s model=%s", *key[:3])
             return cached.model_copy(deep=True)
         future = _advice_inflight.get(key)
         owns_request = future is None
@@ -416,7 +422,7 @@ def generate_advice(facts: dict[str, Any]) -> AdviceResponse:
             _advice_inflight[key] = future
 
     if not owns_request:
-        logger.info("今日建议复用进行中的请求 date=%s data_version=%s model=%s", *key)
+        logger.info("今日建议复用进行中的请求 date=%s data_version=%s model=%s", *key[:3])
         return future.result(timeout=70).model_copy(deep=True)
 
     started = time.perf_counter()
@@ -429,7 +435,7 @@ def generate_advice(facts: dict[str, Any]) -> AdviceResponse:
         future.set_result(result)
         logger.info(
             "今日建议生成完成 date=%s data_version=%s model=%s elapsed_ms=%d",
-            *key,
+            *key[:3],
             round((time.perf_counter() - started) * 1000),
         )
         return result.model_copy(deep=True)

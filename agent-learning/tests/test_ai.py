@@ -1,5 +1,8 @@
 import json
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from threading import Event
 from unittest.mock import patch
 
 from app.ai import (
@@ -11,7 +14,7 @@ from app.ai import (
     photo_items,
     stream_follow_up,
 )
-from app.models.schemas import FoodTemplateResponse, KcalRange
+from app.models.schemas import AdviceResponse, FoodTemplateResponse, KcalRange
 from app.nutrition_search import WebDensityEstimate
 
 
@@ -243,6 +246,56 @@ class AiTrustTests(unittest.TestCase):
         self.assertEqual(calls, 2)
         self.assertEqual(first, second)
         self.assertEqual(changed.data_version, 502)
+
+    def test_advice_cache_does_not_reuse_a_version_for_different_facts(self):
+        old_payload = {"cards": [
+            {"type": kind, "title": "建议", "body": "旧餐食建议", "bullets": []}
+            for kind in ("status", "next_meal", "risk_or_encouragement")
+        ]}
+        new_payload = deepcopy(old_payload)
+        new_payload["cards"][0]["body"] = "新餐食建议"
+        old_facts = {"date": "2026-10-07", "data_version": 2, "meals": ["旧餐食"]}
+        new_facts = {**old_facts, "meals": ["新餐食"]}
+        with patch("app.ai.invoke_chat", side_effect=[
+            json.dumps(old_payload, ensure_ascii=False),
+            json.dumps(new_payload, ensure_ascii=False),
+        ]) as invoke:
+            old = generate_advice(old_facts)
+            new = generate_advice(new_facts)
+            cached = generate_advice(dict(reversed(list(new_facts.items()))))
+        self.assertEqual(invoke.call_count, 2)
+        self.assertEqual(old.cards[0].body, "旧餐食建议")
+        self.assertEqual(new.cards[0].body, "新餐食建议")
+        self.assertEqual(new, cached)
+
+    def test_advice_after_version_reuse_does_not_join_an_old_inflight_request(self):
+        started = Event()
+        release_old = Event()
+        old_facts = {"date": "2026-10-07", "data_version": 2, "meals": ["旧餐食"]}
+        new_facts = {**old_facts, "meals": ["新餐食"]}
+
+        def generate(facts, _model):
+            if facts == old_facts:
+                started.set()
+                if not release_old.wait(5):
+                    raise TimeoutError("旧请求未释放")
+            return AdviceResponse.model_validate({
+                "record_date": facts["date"], "data_version": facts["data_version"],
+                "cards": [{"type": kind, "title": "建议", "body": facts["meals"][0], "bullets": []}
+                          for kind in ("status", "next_meal", "risk_or_encouragement")],
+            })
+
+        with patch("app.ai._generate_advice_uncached", side_effect=generate), ThreadPoolExecutor(max_workers=2) as executor:
+            old = executor.submit(generate_advice, old_facts)
+            try:
+                self.assertTrue(started.wait(5))
+                new = executor.submit(generate_advice, new_facts).result(timeout=1)
+            finally:
+                release_old.set()
+            old.result(timeout=5)
+            cached = generate_advice(new_facts)
+        self.assertEqual(new.cards[0].body, "新餐食")
+        self.assertEqual(cached, new)
 
 
 if __name__ == "__main__":

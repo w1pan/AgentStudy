@@ -9,7 +9,9 @@ const paths: Record<string, string> = {
   chart: 'M4 21V11h3v10ZM11 21V3h3v18ZM18 21V7h3v14Z',
   leaf: 'M4 20C2 7 10 2 21 3c1 12-7 18-17 17ZM4 20 16 8',
   activity: 'M15 5a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM5 10l5-3 4 3h5M10 7l-2 7 5 3-2 5M8 14l-4 7',
+  flame: 'M11 2c1 5-3 6-3 10-1-1-2-2-2-3-2 3-3 5-2 8a8 8 0 0 0 16-2c0-5-4-10-9-13Z',
+  scale: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 9a5 5 0 0 1 10 0M12 9l2-3M8 16h8',
 }
 </script>
-<template><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] || paths.leaf" /></svg></template>
+<template><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] || paths.leaf" /><path v-if="name === 'flame'" d="M12 11c1 3-2 4-2 6-1-1-1-2-1-2-2 3-1 7 3 7s6-5 0-11Z" fill="currentColor" stroke="none" /></svg></template>
 <style scoped>.ui-icon { width: 24px; height: 24px; flex-shrink: 0; vertical-align: middle; }</style>

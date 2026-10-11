@@ -3,4 +3,89 @@
 #app {
   width: 100%;
   height: 100%;
+  height: 100dvh;
+}
+
+@media (max-width: 760px) {
+  button, summary { min-height: 44px; }
+  input:not([type='checkbox']):not([type='radio']):not([type='file']), select, textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
+
+@media (hover: hover) {
+  :is(.primary-button, .primary):not(:disabled):hover {
+    background: var(--qh-brand-hover);
+  }
+
+  :is(.secondary-button, .secondary):not(:disabled):hover {
+    background: var(--qh-surface-subtle);
+  }
+}
+
+/* Shared disclosure card: native details preserves keyboard and open state. */
+.qh-disclosure {
+  border: var(--qh-stroke) solid var(--qh-border-strong);
+  border-radius: var(--qh-radius-card);
+  color: var(--qh-text);
+  background: var(--qh-card);
+}
+
+.qh-disclosure + .qh-disclosure {
+  margin-top: var(--qh-space-3);
+}
+
+.qh-disclosure > summary {
+  position: relative;
+  display: block;
+  padding: var(--qh-space-4) var(--qh-space-6);
+  padding-right: 56px;
+  border-radius: calc(var(--qh-radius-card) - var(--qh-stroke));
+  background: var(--qh-surface-subtle);
+  font-weight: 700;
+  line-height: 1.5;
+  list-style: none;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.qh-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* CSS strokes keep the decorative +/- out of the accessible name. */
+.qh-disclosure > summary::before,
+.qh-disclosure > summary::after {
+  position: absolute;
+  top: 50%;
+  right: var(--qh-space-6);
+  width: 14px;
+  height: 1.5px;
+  background: var(--qh-muted);
+  content: '';
+}
+
+.qh-disclosure > summary::after {
+  transform: rotate(90deg);
+}
+
+.qh-disclosure[open] > summary {
+  border-radius: calc(var(--qh-radius-card) - var(--qh-stroke)) calc(var(--qh-radius-card) - var(--qh-stroke)) 0 0;
+}
+
+.qh-disclosure[open] > summary::after {
+  transform: rotate(0);
+}
+
+.qh-disclosure__content {
+  padding: var(--qh-space-4) var(--qh-space-6);
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .qh-disclosure > summary::after {
+    transition: transform var(--qh-duration) ease;
+  }
 }
