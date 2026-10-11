@@ -1,0 +1,6 @@
+# Opt in with: docker compose -f compose.yaml -f compose.public-http.yaml ...
+# Keep the loopback 8080 mapping from compose.yaml.
+services:
+  web:
+    ports:
+      - "0.0.0.0:80:80"

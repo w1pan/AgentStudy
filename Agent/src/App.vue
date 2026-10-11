@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import UiIcon from '@/components/UiIcon.vue'
 import LeafMark from '@/components/LeafMark.vue'
 import FeedbackToast from '@/components/FeedbackToast.vue'
+import SiteFooter from '@/components/SiteFooter.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import RecordsView from '@/views/RecordsView.vue'
 import TodayView from '@/views/TodayView.vue'
@@ -101,16 +102,19 @@ onBeforeUnmount(() => {
   <div v-if="!store.initialized" class="boot-screen" role="status">
     <div class="brand-mark"><LeafMark /></div>
     <strong>轻衡</strong><span>正在整理今天的能量账本…</span>
+    <SiteFooter />
   </div>
 
   <div v-else-if="!store.hasProfile && store.initializationFailed" class="boot-screen load-failed">
     <div class="brand-mark"><LeafMark /></div>
     <strong>暂时无法加载档案</strong><span>请检查连接后重试。</span>
     <button :disabled="store.busy" @click="store.initialize()">{{ store.busy ? '正在加载…' : '重新加载' }}</button>
+    <SiteFooter />
   </div>
 
   <div v-else-if="!store.hasProfile" class="onboarding-shell">
     <ProfileView onboarding @saved="onboardingSaved" />
+    <SiteFooter />
   </div>
 
   <div v-else class="app-shell">
@@ -143,6 +147,7 @@ onBeforeUnmount(() => {
       <ProfileView v-else />
       </div>
       </Transition>
+      <SiteFooter />
     </section>
 
     <nav class="mobile-nav" aria-label="手机主导航">
@@ -194,6 +199,7 @@ onBeforeUnmount(() => {
   .mobile-nav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); height: calc(64px + env(safe-area-inset-bottom)); padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); border-top: var(--qh-stroke) solid var(--qh-border-strong); background: var(--qh-card); }
   .mobile-nav button { display: grid; place-items: center; gap: 3px; border: 0; border-radius: var(--qh-radius-control); color: var(--qh-muted); background: transparent; cursor: pointer; }
   .main-stage { padding-top: env(safe-area-inset-top); scroll-padding-bottom: 100px; }
+  .main-stage > .site-footer { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
   .main-stage :deep(.profile-page), .main-stage :deep(.records-page) { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .mobile-nav button b { font-size: 11px; }
   .mobile-nav button.active { color: var(--qh-brand); background: var(--qh-surface-subtle); }
